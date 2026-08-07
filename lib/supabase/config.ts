@@ -2,14 +2,17 @@
 // The URL and publishable (anon) key are safe to expose in client code — row
 // level security in the database is what protects the data.
 //
-// These prefer environment variables (recommended) and fall back to the
-// project's known public values so the app keeps working if the vars are
-// not set. To override, define NEXT_PUBLIC_SUPABASE_URL and
-// NEXT_PUBLIC_SUPABASE_ANON_KEY in your project settings.
-export const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://rpnwqoinoaksbndwrlks.supabase.co"
-export const SUPABASE_ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "sb_publishable_xYLx3s8pNFf_vnWL8eyQJw_ekOEbX4M"
+// Values are read from environment variables only. Define
+// NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in your Netlify
+// site's environment variables (Site configuration → Environment variables).
+export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ""
+
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  console.warn(
+    "Supabase environment variables are not set. Define NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+  )
+}
 
 // The one account that is granted Super-Admin authority across the app.
 export const ADMIN_EMAIL = "vijaybhaskar9045@gmail.com"
