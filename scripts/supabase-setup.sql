@@ -85,8 +85,8 @@ security definer
 set search_path = ''
 as $$
   select coalesce(
-    (select p.email from public.profiles p where p.id = auth.uid()) = 'vijaybhaskar9045@gmail.com',
-    (auth.jwt() ->> 'email') = 'vijaybhaskar9045@gmail.com'
+    (select p.email from public.profiles p where p.id = auth.uid()) = 'vijaybhaskar.ch9045@gmail.com',
+    (auth.jwt() ->> 'email') = 'vijaybhaskar.ch9045@gmail.com'
   );
 $$;
 
@@ -99,6 +99,31 @@ set search_path = ''
 as $$
 begin
   update public.profiles set sold_count = sold_count + 1 where id = p_user_id;
+end;
+$$;
+
+-- Permanently and completely delete the CURRENTLY signed-in user: all of their
+-- reviews, outgoing requests, listings, their profile row, AND the underlying
+-- auth.users record. Runs as security definer so it can remove the auth row
+-- without ever shipping a service-role key to the browser. It only ever
+-- targets auth.uid(), so a user can only delete themselves.
+create or replace function public.delete_own_account()
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  uid uuid := auth.uid();
+begin
+  if uid is null then
+    raise exception 'Not authenticated';
+  end if;
+  delete from public.reviews where user_id = uid;
+  delete from public.requests where requester_id = uid;
+  delete from public.listings where owner_id = uid;
+  delete from public.profiles where id = uid;
+  delete from auth.users where id = uid;
 end;
 $$;
 
@@ -151,9 +176,18 @@ create policy "listings_delete_own_or_admin" on public.listings
   for delete using (auth.uid() = owner_id or public.is_admin());
 
 -- requests ------------------------------------------------------------------
+-- A user can read a request if they made it, if they own the listing it
+-- targets (this drives the owner's Notifications feed), or if they are admin.
 drop policy if exists "requests_select" on public.requests;
 create policy "requests_select" on public.requests
-  for select using (auth.uid() is not null);
+  for select using (
+    auth.uid() = requester_id
+    or public.is_admin()
+    or exists (
+      select 1 from public.listings l
+      where l.id = listing_id and l.owner_id = auth.uid()
+    )
+  );
 
 drop policy if exists "requests_insert_own" on public.requests;
 create policy "requests_insert_own" on public.requests

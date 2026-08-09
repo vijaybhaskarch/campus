@@ -56,6 +56,26 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     { revalidateOnFocus: true, refreshInterval: 15000 },
   )
 
+  // Real-time: refresh the feed, profile stats, and notifications the instant
+  // any listing or request changes anywhere in Supabase — so a new post shows
+  // up for everyone and an "I Need This" flips status without a manual reload.
+  useEffect(() => {
+    if (!user) return
+    const channel = supabase
+      .channel("campus-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "listings" }, () => {
+        void reloadListings()
+        void reloadProfile()
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "requests" }, () => {
+        void reloadListings()
+      })
+      .subscribe()
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [supabase, user, reloadListings, reloadProfile])
+
   const value: SessionContextValue = {
     loading: !authReady,
     user,

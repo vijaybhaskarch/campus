@@ -1,7 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { ListChecks, Clock, CheckCircle2, Settings, MessageSquareHeart, ChevronRight, ShieldCheck } from "lucide-react"
+import {
+  ListChecks,
+  Clock,
+  CheckCircle2,
+  Settings,
+  MessageSquareHeart,
+  ChevronRight,
+  ShieldCheck,
+  LogOut,
+} from "lucide-react"
+import { getSupabase } from "@/lib/supabase/client"
 import { useSession } from "./session-provider"
 import { AccountSettings } from "./account-settings"
 import { GiveReview } from "./give-review"
@@ -12,6 +22,14 @@ export function ProfileScreen() {
   const [showSettings, setShowSettings] = useState(false)
   const [showReview, setShowReview] = useState(false)
   const [showAdmin, setShowAdmin] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+
+  async function handleLogout() {
+    setLoggingOut(true)
+    // Sign out of Supabase — the auth listener in SessionProvider instantly
+    // sends the app back to the Welcome / Sign-in screen.
+    await getSupabase().auth.signOut()
+  }
 
   if (showAdmin) {
     return <AdminDashboard onBack={() => setShowAdmin(false)} />
@@ -92,6 +110,18 @@ export function ProfileScreen() {
           <MenuButton icon={Settings} label="Account settings" onClick={() => setShowSettings(true)} />
           <MenuButton icon={MessageSquareHeart} label="Give review" onClick={() => setShowReview(true)} last />
         </section>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3.5 text-left shadow-sm transition-colors hover:bg-secondary disabled:opacity-60"
+        >
+          <LogOut className="h-5 w-5 text-destructive" />
+          <span className="flex-1 text-sm font-semibold text-destructive">
+            {loggingOut ? "Logging out…" : "Logout"}
+          </span>
+        </button>
       </div>
 
       {showSettings && (
