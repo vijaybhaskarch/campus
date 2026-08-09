@@ -12,7 +12,7 @@ export const SUPABASE_ANON_KEY =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "sb_publishable_xYLx3s8pNFf_vnWL8eyQJw_ekOEbX4M"
 
 // The one account that is granted Super-Admin authority across the app.
-export const ADMIN_EMAIL = "vijaybhaskar9045@gmail.com"
+export const ADMIN_EMAIL = "vijaybhaskar.ch9045@gmail.com"
 
 // Passcode required on every single visit before the app is shown.
 export const ACCESS_PASSCODE = "ADARSHCAMPUSSHAREHUBVB"

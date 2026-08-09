@@ -6,29 +6,65 @@ import { useState, useEffect } from "react"
 import { GraduationCap, Lock, Eye, EyeOff, ArrowRight } from "lucide-react"
 import { ACCESS_PASSCODE } from "@/lib/supabase/config"
 
+const STORAGE_KEY = "campus_unlocked"
+
+/**
+ * Detects whether the current URL is a Supabase auth callback (OAuth redirect,
+ * magic link, signup confirmation, or PKCE code exchange). Both the query
+ * string (?code=...&type=signup) and the hash fragment (#access_token=...) are
+ * checked because different auth flows put the params in different places.
+ */
+function isAuthRedirect(): boolean {
+  if (typeof window === "undefined") return false
+  const search = window.location.search
+  const hash = window.location.hash
+  const combined = `${search} ${hash}`
+  return (
+    /[?&#](access_token|refresh_token|provider_token|code|type|error|error_description|token_hash)=/.test(combined)
+  )
+}
+
 export function AccessGate({ children }: { children: React.ReactNode }) {
+  // Start unlocked=true when we're mid-auth-redirect so the gate never flashes
+  // on the way back from Google. Otherwise wait for the session check.
   const [unlocked, setUnlocked] = useState(false)
+  const [checked, setChecked] = useState(false)
   const [value, setValue] = useState("")
   const [show, setShow] = useState(false)
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    // Check if already unlocked in this browser session
-    const isUnlocked = sessionStorage.getItem("campus_unlocked")
-    if (isUnlocked === "true") {
+    // Returning from Google OAuth / magic link / signup confirmation: never
+    // show the passcode gate, and remember the unlocked state so subsequent
+    // in-session navigations stay open too.
+    if (isAuthRedirect()) {
+      sessionStorage.setItem(STORAGE_KEY, "true")
+      setUnlocked(true)
+      setChecked(true)
+      return
+    }
+
+    // Otherwise, honour the remembered unlocked state for this browser session.
+    if (sessionStorage.getItem(STORAGE_KEY) === "true") {
       setUnlocked(true)
     }
+    setChecked(true)
   }, [])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (value.trim() === ACCESS_PASSCODE) {
       setError(false)
-      sessionStorage.setItem("campus_unlocked", "true")
+      sessionStorage.setItem(STORAGE_KEY, "true")
       setUnlocked(true)
     } else {
       setError(true)
     }
+  }
+
+  // Avoid flashing the passcode gate before we've checked the session / URL.
+  if (!checked) {
+    return null
   }
 
   if (unlocked) {

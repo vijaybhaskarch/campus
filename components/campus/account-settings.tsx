@@ -125,8 +125,8 @@ export function AccountSettings({
             <h2 className="text-lg font-bold text-foreground">Delete account?</h2>
           </div>
           <p className="text-sm leading-relaxed text-muted-foreground text-pretty">
-            This permanently wipes your profile and every listing you&apos;ve created from the database, then logs you
-            out. This cannot be undone.
+            This permanently wipes your profile, every listing you&apos;ve created, your requests and reviews, and your
+            sign-in account from the database, then logs you out. This cannot be undone.
           </p>
           {error && (
             <p role="alert" className="mt-3 text-sm font-medium text-destructive">
