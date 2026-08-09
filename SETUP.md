@@ -1,9 +1,11 @@
 # Campus Share Hub — Setup
 
-This app runs entirely against **your own Supabase project** using the public
-URL and publishable key in `lib/supabase/config.ts`. No v0 integration or
-environment variables are required. Two things must be done once in your
-Supabase dashboard before the app works end to end.
+This app runs entirely against **your own Supabase project**. Set the
+`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` environment
+variables (in Netlify: Site configuration → Environment variables; locally: a
+`.env.local` file, which is git-ignored) to your project's public URL and
+publishable/anon key. Two things must be done once in your Supabase dashboard
+before the app works end to end.
 
 ## 1. Create the database schema
 
@@ -23,7 +25,7 @@ profile row when a user signs up.
    Google provider screen — it looks like):
 
    ```
-   https://rpnwqoinoaksbndwrlks.supabase.co/auth/v1/callback
+   https://<your-project-ref>.supabase.co/auth/v1/callback
    ```
 
 4. Paste the Google **Client ID** and **Client Secret** back into Supabase and
