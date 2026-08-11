@@ -108,8 +108,11 @@ export function ProfileScreen() {
 
         <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <MenuButton icon={Settings} label="Account settings" onClick={() => setShowSettings(true)} />
-          <MenuButton icon={MessageSquareHeart} label="Give review" onClick={() => setShowReview(true)} last />
+          <MenuButton icon={MessageSquareHeart} label="Give Review or Complaint on any User" onClick={() => setShowReview(true)} last />
         </section>
+        <p className="text-xs text-muted-foreground px-1 -mt-3 leading-relaxed">
+  Hint: You can give complaint on any user and it is private and viewable only by the admin.
+</p>
 
         <button
           type="button"
