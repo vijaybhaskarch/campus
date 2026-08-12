@@ -113,7 +113,7 @@ export function ProductDetail({
           <p className="mt-1 text-lg font-bold text-primary">{formatPrice(item.price)}</p>
         </section>
 
-        <section>
+      <section>
           <h2 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
             <User2 className="h-4 w-4 text-primary" />
             Product Owner Details:
@@ -122,6 +122,18 @@ export function ProductDetail({
           <p className="mt-1 rounded-2xl border border-border bg-card p-3.5 text-sm leading-relaxed text-muted-foreground">
             {item.owner}
           </p>
+
+          {item.pickup_place && (
+            <p className="mt-2 text-sm text-foreground">
+              <strong className="text-muted-foreground">Pickup Place:</strong> {item.pickup_place}
+            </p>
+          )}
+
+          {item.phone && (
+            <p className="mt-1 text-sm text-foreground">
+              <strong className="text-muted-foreground">Phone:</strong> {item.phone}
+            </p>
+          )}
         </section>
 
         {isAdmin && !isMine && (
