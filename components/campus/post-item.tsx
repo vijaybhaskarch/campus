@@ -51,7 +51,7 @@ export function PostItem({
         price: isFree ? 0 : Number(price) || 0,
         image: image ?? "/items/textbooks.png",
         owner: details.trim(),
-        pickupPlace: pickupPlace.trim(),
+        pickup_place: pickupPlace.trim(),
         phone: phone.trim(),
       })
     } catch (err) {
