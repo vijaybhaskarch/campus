@@ -21,6 +21,8 @@ export interface Item {
   status: ItemStatus
   /** auth uuid of the user who tapped "I Need This" (null when available) */
   requested_by: string | null
+  pickup_place?: string
+  phone?: string
   created_at: string
 }
 
