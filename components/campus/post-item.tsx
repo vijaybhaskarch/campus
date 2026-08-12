@@ -158,13 +158,27 @@ export function PostItem({
           )}
         </Field>
 
-        <Field label="Enter Your Details (Name, Branch, Location/Room for Buyers)">
+        <Field label="Enter Your Details (Name, Year, Branch)">
           <textarea
             value={details}
             onChange={(e) => setDetails(e.target.value)}
             rows={4}
-            placeholder="e.g. 2nd year CSE, Vijay Bhaskar. Hostel Block C, Room 214. Ping after 6 PM."
+            placeholder="Ex: Ch Vijay Bhaskar, 2nd Year, CSE"
             className="input resize-none leading-relaxed"
+          />
+        </Field>
+        <Field label="Pickup Place">
+          <input
+            placeholder="Canteen"
+            className="input"
+          />
+        </Field>
+
+        <Field label="Phone number (Optional)">
+          <input
+            type="tel"
+            placeholder="e.g. 9876543210"
+            className="input"
           />
         </Field>
 
