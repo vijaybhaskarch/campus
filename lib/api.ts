@@ -208,3 +208,40 @@ export async function fetchProfileStats(userId: string): Promise<ProfileStats> {
     sold: rows.filter((r) => r.status === "sold").length,
   }
 }
+// ---------------------------------------------------------------------------
+// Admin Announcements
+// ---------------------------------------------------------------------------
+export async function fetchAnnouncements() {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from("admin_announcements")
+    .select("*")
+    .order("created_at", { ascending: false })
+  if (error) throw error
+  return data
+}
+
+export async function createAnnouncement(announcement: { 
+  title: string; 
+  message: string; 
+  link_url?: string | null; 
+  link_text?: string 
+}) {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from("admin_announcements")
+    .insert([announcement])
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteAnnouncement(id: string) {
+  const supabase = getSupabase()
+  const { error } = await supabase
+    .from("admin_announcements")
+    .delete()
+    .eq("id", id)
+  if (error) throw error
+}
