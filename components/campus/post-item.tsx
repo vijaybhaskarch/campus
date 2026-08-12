@@ -21,6 +21,8 @@ export function PostItem({
   const [price, setPrice] = useState("")
   const [isFree, setIsFree] = useState(false)
   const [details, setDetails] = useState("")
+  const [pickupPlace, setPickupPlace] = useState("")
+  const [phone, setPhone] = useState("")
   const [image, setImage] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -43,12 +45,14 @@ export function PostItem({
     setSubmitting(true)
     setError(null)
     try {
-      await onSubmit({
+     await onSubmit({
         title: title.trim(),
         category,
         price: isFree ? 0 : Number(price) || 0,
         image: image ?? "/items/textbooks.png",
         owner: details.trim(),
+        pickupPlace: pickupPlace.trim(),
+        phone: phone.trim(),
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not post your listing. Please try again.")
@@ -167,20 +171,24 @@ export function PostItem({
             className="input resize-none leading-relaxed"
           />
         </Field>
-        <Field label="Pickup Place">
-          <input
-            placeholder="Canteen"
-            className="input"
-          />
-        </Field>
+       <Field label="Pickup Place">
+      <input
+        value={pickupPlace}
+        onChange={(e) => setPickupPlace(e.target.value)}
+        placeholder="Canteen"
+        className="input"
+      />
+    </Field>
 
-        <Field label="Phone number (Optional)">
-          <input
-            type="tel"
-            placeholder="e.g. 9876543210"
-            className="input"
-          />
-        </Field>
+    <Field label="Phone number (Optional)">
+      <input
+        type="tel"
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder="e.g. 9876543210"
+        className="input"
+      />
+    </Field>
 
         {error && (
           <p role="alert" className="text-sm font-medium text-destructive">
