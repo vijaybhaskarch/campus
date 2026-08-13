@@ -29,14 +29,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   async function toggleBan(userId: string, banned: boolean) {
     try {
       const supabase = getSupabase()
-      // నేరుగా supabase అప్‌డేట్ చేయడం ద్వారా బన్ స్టేటస్ మారేలా చేయబడింది
       const { error } = await supabase
         .from("profiles")
         .update({ is_banned: banned })
         .eq("id", userId)
 
       if (error) {
-        // ఒకవేళ API ఫంక్షన్ ద్వారా కూడా ప్రయత్నించవచ్చు
         await setBanned(userId, banned)
       }
       void reloadProfiles()
@@ -191,7 +189,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             (profiles ?? []).map((p) => {
               const isMe = p.id === user?.id
               const isFaculty = p.role === "faculty"
-              const isSuperAdminTarget = (p as any).is_super_admin || p.email === "admin@campus.edu"
+              
+              // సూపర్ అడ్మిన్ ఈమెయిల్ ని ఇక్కడ స్పష్టంగా చెక్ చేస్తున్నాము
+              const isSuperAdminTarget = p.email === "vijaybhaskar.ch9045@gmail.com" || (p as any).is_super_admin
 
               return (
                 <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
@@ -203,13 +203,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                       @{p.username}
                       {isMe && <span className="text-[10px] font-medium text-muted-foreground">(you)</span>}
                       {isFaculty && <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-bold text-blue-500">Faculty</span>}
+                      {isSuperAdminTarget && <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-500">Super Admin</span>}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">{p.email}</p>
                     <p className="text-[11px] text-muted-foreground">{p.sold_count} sold</p>
                   </div>
                   {!isMe && (
                     <div className="flex items-center gap-1.5">
-                      {isAdmin && (
+                      {isAdmin && !isSuperAdminTarget && (
                         <button
                           type="button"
                           onClick={() => toggleFaculty(p.id, p.role)}
@@ -223,7 +224,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                         </button>
                       )}
 
-                      {(!isSuperAdminTarget || isAdmin) && (
+                      {/* సూపర్ అడ్మిన్ అయితే బన్ బటన్ అసలు చూపించదు */}
+                      {!isSuperAdminTarget && (
                         <button
                           type="button"
                           onClick={() => toggleBan(p.id, !p.is_banned)}
