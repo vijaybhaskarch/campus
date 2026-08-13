@@ -25,6 +25,7 @@ export function ProfileScreen() {
   const [showSettings, setShowSettings] = useState(false)
   const [showReview, setShowReview] = useState(false)
   const [showAdmin, setShowAdmin] = useState(false)
+  const [showFacultyDash, setShowFacultyDash] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
   async function handleLogout() {
@@ -40,10 +41,8 @@ export function ProfileScreen() {
   const username = profile?.username ?? "student"
   const avatarUrl = (user?.user_metadata?.avatar_url as string | undefined) ?? null
   
-  // ఫోన్ నంబర్ చెక్ చేయడం
   const phoneNumber = (profile as any)?.phone || (profile as any)?.phone_number || ""
 
-  // యూజర్ రోల్ ఫ్యాకల్టీనా కాదా అని చెక్ చేయడానికి
   const userRole = (profile as any)?.role || ""
   const isFaculty = userRole === "faculty"
 
@@ -65,7 +64,6 @@ export function ProfileScreen() {
       </header>
 
       <div className="flex flex-col gap-5 px-5 pb-32">
-        {/* ఫోన్ నంబర్ లేకపోతే హెచ్చరిక అలర్ట్ బాక్స్ */}
         {!phoneNumber && (
           <div className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 shadow-sm">
             <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
@@ -108,7 +106,6 @@ export function ProfileScreen() {
               <p className="mt-0.5 text-xs text-amber-500 font-medium">Phone number missing</p>
             )}
             
-            {/* Super-admin లేదా Faculty బ్యాడ్జ్ చూపించడానికి */}
             <div className="flex flex-wrap gap-1.5 mt-1.5">
               {isAdmin && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
@@ -151,6 +148,19 @@ export function ProfileScreen() {
           </button>
         )}
 
+        {/* ఫ్యాకల్టీకి ప్రత్యేకంగా డాష్‌బోర్డ్ బటన్ */}
+        {isFaculty && (
+          <button
+            type="button"
+            onClick={() => setShowFacultyDash(true)}
+            className="flex items-center gap-3 rounded-2xl bg-blue-600 px-4 py-3.5 text-left text-white shadow-lg shadow-blue-600/25"
+          >
+            <GraduationCap className="h-5 w-5" />
+            <span className="flex-1 text-sm font-semibold">Faculty Dashboard</span>
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        )}
+
         <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
           <MenuButton icon={Settings} label="Account settings" onClick={() => setShowSettings(true)} />
           <MenuButton icon={MessageSquareHeart} label="Give Review or Complaint on any User" onClick={() => setShowReview(true)} last />
@@ -181,6 +191,24 @@ export function ProfileScreen() {
         />
       )}
       {showReview && <GiveReview userId={userId} username={username} onClose={() => setShowReview(false)} />}
+      
+      {/* ఒకవేళ ఫ్యాకల్టీ డాష్‌బోర్డ్ క్లిక్ చేస్తే ఏ స్క్రీన్ చూపించాలో ఇక్కడ సెట్ చేసుకోవచ్చు */}
+      {showFacultyDash && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background p-5">
+          <div className="flex items-center justify-between pb-4 border-b border-border">
+            <h2 className="text-lg font-bold">Faculty Dashboard</h2>
+            <button 
+              onClick={() => setShowFacultyDash(false)}
+              className="text-sm font-semibold text-primary"
+            >
+              Back
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
+            <p>Welcome to Faculty Dashboard! (ఇక్కడ మీరు ఫ్యాకల్టీకి కావలసిన ఫీచర్లు లేదా లిస్ట్ మేనేజ్‌మెంట్ సెట్ చేసుకోవచ్చు)</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
