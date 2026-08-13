@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import useSWR from "swr"
-import { ChevronLeft, Users, MessageSquareWarning, PackageSearch, Ban, ShieldCheck, Trash2, Loader2, Megaphone, Send, Image as ImageIcon } from "lucide-react"
+import { ChevronLeft, Users, MessageSquareWarning, PackageSearch, Ban, ShieldCheck, Trash2, Loader2, Megaphone, Send, Image as ImageIcon, GraduationCap } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { deleteListing, fetchAllProfiles, fetchReviews, setBanned, fetchAnnouncements, createAnnouncement, deleteAnnouncement } from "@/lib/api"
 import { formatPrice, type Item } from "@/lib/campus-data"
@@ -19,7 +19,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [message, setMessage] = useState("")
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [linkUrl, setLinkUrl] = useState("")
-  const [linkText, setLinkText] = useState("View Deal")
+  const [linkText, setLinkText] = useState("View")
   const [submitting, setSubmitting] = useState(false)
 
   const { data: profiles, mutate: reloadProfiles, isLoading: profilesLoading } = useSWR("admin-profiles", fetchAllProfiles)
@@ -29,6 +29,17 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   async function toggleBan(userId: string, banned: boolean) {
     await setBanned(userId, banned)
     void reloadProfiles()
+  }
+
+  async function toggleFaculty(userId: string, currentRole: string) {
+    const newRole = currentRole === "faculty" ? "user" : "faculty"
+    const supabase = getSupabase()
+    const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", userId)
+    if (error) {
+      alert("Failed to update role.")
+    } else {
+      void reloadProfiles()
+    }
   }
 
   async function removeListing(item: Item) {
@@ -68,14 +79,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         message: message.trim(),
         image_url: imageUrl,
         link_url: linkUrl.trim() || null,
-        link_text: linkUrl.trim() ? (linkText.trim() || "View Deal") : "View Deal",
+        link_text: linkUrl.trim() ? (linkText.trim() || "View") : "View",
       })
 
       setTitle("")
       setMessage("")
       setImageFile(null)
       setLinkUrl("")
-      setLinkText("View Deal")
+      setLinkText("View")
       void reloadAnnouncements()
       alert("Announcement sent successfully to all users!")
     } catch (err) {
@@ -98,7 +109,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   }
 
   const tabs: { id: AdminTab; label: string; icon: typeof Users }[] = [
-    { id: "users", label: "Users", icon: Users },
+    { id: "users", label: "Users & Faculty", icon: Users },
     { id: "listings", label: "Listings", icon: PackageSearch },
     { id: "reviews", label: "Reviews", icon: MessageSquareWarning },
     { id: "announcement", label: "Announcement", icon: Megaphone },
@@ -149,33 +160,49 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
           ) : (
             (profiles ?? []).map((p) => {
               const isMe = p.id === user?.id
+              const isFaculty = p.role === "faculty"
               return (
                 <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold uppercase text-primary">
                     {p.username.slice(0, 2)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-card-foreground">
+                    <p className="truncate text-sm font-semibold text-card-foreground flex items-center gap-1.5">
                       @{p.username}
-                      {isMe && <span className="ml-1 text-[10px] font-medium text-muted-foreground">(you)</span>}
+                      {isMe && <span className="text-[10px] font-medium text-muted-foreground">(you)</span>}
+                      {isFaculty && <span className="rounded-md bg-accent/20 px-1.5 py-0.5 text-[10px] font-bold text-accent">Faculty</span>}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">{p.email}</p>
                     <p className="text-[11px] text-muted-foreground">{p.sold_count} sold</p>
                   </div>
                   {!isMe && (
-                    <button
-                      type="button"
-                      onClick={() => toggleBan(p.id, !p.is_banned)}
-                      className={cn(
-                        "inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold",
-                        p.is_banned
-                          ? "border border-border text-foreground"
-                          : "bg-destructive text-destructive-foreground",
-                      )}
-                    >
-                      {p.is_banned ? <ShieldCheck className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
-                      {p.is_banned ? "Unban" : "Ban"}
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleFaculty(p.id, p.role)}
+                        className={cn(
+                          "inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold border",
+                          isFaculty ? "border-primary text-primary bg-primary/10" : "border-border text-muted-foreground hover:bg-secondary"
+                        )}
+                      >
+                        <GraduationCap className="h-4 w-4" />
+                        {isFaculty ? "Revoke Faculty" : "Make Faculty"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => toggleBan(p.id, !p.is_banned)}
+                        className={cn(
+                          "inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold",
+                          p.is_banned
+                            ? "border border-border text-foreground"
+                            : "bg-destructive text-destructive-foreground",
+                        )}
+                      >
+                        {p.is_banned ? <ShieldCheck className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+                        {p.is_banned ? "Unban" : "Ban"}
+                      </button>
+                    </div>
                   )}
                 </div>
               )
@@ -243,7 +270,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g. 🔥 Special Flipkart Deal"
+                  placeholder="Enter title"
                   className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -276,7 +303,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     type="url"
                     value={linkUrl}
                     onChange={(e) => setLinkUrl(e.target.value)}
-                    placeholder="https://fkrt.it/..."
+                    placeholder="https"
                     className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
@@ -286,7 +313,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     type="text"
                     value={linkText}
                     onChange={(e) => setLinkText(e.target.value)}
-                    placeholder="Grab Now"
+                    placeholder="View"
                     disabled={!linkUrl.trim()}
                     className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                   />
@@ -332,7 +359,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                               rel="noopener noreferrer"
                               className="mt-2.5 inline-flex items-center rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20"
                             >
-                              {ann.link_text || "View Link"} →
+                              {ann.link_text || "View"} →
                             </a>
                           )}
                         </div>
