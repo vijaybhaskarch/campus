@@ -12,6 +12,7 @@ import {
   LogOut,
   PhoneCall,
   AlertTriangle,
+  GraduationCap,
 } from "lucide-react"
 import { getSupabase } from "@/lib/supabase/client"
 import { useSession } from "./session-provider"
@@ -39,8 +40,12 @@ export function ProfileScreen() {
   const username = profile?.username ?? "student"
   const avatarUrl = (user?.user_metadata?.avatar_url as string | undefined) ?? null
   
-  // ప్రొఫైల్ నుండి ఫోన్ నంబర్ చెక్ చేయడం (profile లో phone లేదా phone_number ఫీల్డ్ ఉంటే)
+  // ఫోన్ నంబర్ చెక్ చేయడం
   const phoneNumber = (profile as any)?.phone || (profile as any)?.phone_number || ""
+
+  // యూజర్ రోల్ ఫ్యాకల్టీనా కాదా అని చెక్ చేయడానికి
+  const userRole = (profile as any)?.role || ""
+  const isFaculty = userRole === "faculty"
 
   const mine = listings.filter((i) => i.owner_id === userId)
   const active = mine.filter((i) => i.status === "available").length
@@ -102,12 +107,22 @@ export function ProfileScreen() {
             ) : (
               <p className="mt-0.5 text-xs text-amber-500 font-medium">Phone number missing</p>
             )}
-            {isAdmin && (
-              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                <ShieldCheck className="h-3 w-3" />
-                Super-admin
-              </span>
-            )}
+            
+            {/* Super-admin లేదా Faculty బ్యాడ్జ్ చూపించడానికి */}
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {isAdmin && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  <ShieldCheck className="h-3 w-3" />
+                  Super-admin
+                </span>
+              )}
+              {isFaculty && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-semibold text-blue-500">
+                  <GraduationCap className="h-3 w-3" />
+                  Faculty
+                </span>
+              )}
+            </div>
           </div>
         </section>
 
