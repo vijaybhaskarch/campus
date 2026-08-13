@@ -205,7 +205,7 @@ export function ProfileScreen() {
             </button>
           </div>
           <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
-            <p>Welcome to Faculty Dashboard! (ఇక్కడ మీరు ఫ్యాకల్టీకి కావలసిన ఫీచర్లు లేదా లిస్ట్ మేనేజ్‌మెంట్ సెట్ చేసుకోవచ్చు)</p>
+            <p>Welcome to Facult Dashboard!</p>
           </div>
         </div>
       )}
