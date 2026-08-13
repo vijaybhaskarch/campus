@@ -182,7 +182,7 @@ export function ProfileScreen() {
         </button>
       </div>
 
-      {showSettings && (
+     {showSettings && (
         <AccountSettings
           userId={userId}
           currentUsername={username}
@@ -192,10 +192,12 @@ export function ProfileScreen() {
       )}
       {showReview && <GiveReview userId={userId} username={username} onClose={() => setShowReview(false)} />}
       
-      {/* ఒకవేళ ఫ్యాకల్టీ డాష్‌బోర్డ్ క్లిక్ చేస్తే ఏ స్క్రీన్ చూపించాలో ఇక్కడ సెట్ చేసుకోవచ్చు */}
       {showFacultyDash && (
         <AdminDashboard onBack={() => setShowFacultyDash(false)} />
       )}
+    </div>
+  )
+}
 function MenuButton({
   icon: Icon,
   label,
