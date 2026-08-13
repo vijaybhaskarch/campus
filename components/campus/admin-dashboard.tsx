@@ -27,8 +27,23 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const { data: announcements, mutate: reloadAnnouncements, isLoading: announcementsLoading } = useSWR("admin-announcements", fetchAnnouncements)
 
   async function toggleBan(userId: string, banned: boolean) {
-    await setBanned(userId, banned)
-    void reloadProfiles()
+    try {
+      const supabase = getSupabase()
+      // నేరుగా supabase అప్‌డేట్ చేయడం ద్వారా బన్ స్టేటస్ మారేలా చేయబడింది
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_banned: banned })
+        .eq("id", userId)
+
+      if (error) {
+        // ఒకవేళ API ఫంక్షన్ ద్వారా కూడా ప్రయత్నించవచ్చు
+        await setBanned(userId, banned)
+      }
+      void reloadProfiles()
+    } catch (err) {
+      console.error("Failed to ban/unban user:", err)
+      alert("Failed to update user ban status.")
+    }
   }
 
   async function toggleFaculty(userId: string, currentRole: string) {
@@ -176,7 +191,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             (profiles ?? []).map((p) => {
               const isMe = p.id === user?.id
               const isFaculty = p.role === "faculty"
-              const isSuperAdminTarget = (p as any).is_super_admin || p.email === "admin@campus.edu" // Replace with your super admin check if needed
+              const isSuperAdminTarget = (p as any).is_super_admin || p.email === "admin@campus.edu"
 
               return (
                 <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
