@@ -89,6 +89,16 @@ export function NotificationsScreen({ items, currentUserId }: { items: Item[]; c
                   <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">Admin</span>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
+                
+                {/* Admin Announcement Image Display */}
+                {ann.image_url && (
+                  <img
+                    src={ann.image_url}
+                    alt="Announcement attachment"
+                    className="mt-2.5 h-36 w-full rounded-xl object-cover"
+                  />
+                )}
+
                 {ann.link_url && (
                   <a
                     href={ann.link_url}
