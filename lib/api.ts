@@ -220,10 +220,10 @@ export async function fetchAnnouncements() {
   if (error) throw error
   return data
 }
-
 export async function createAnnouncement(announcement: { 
   title: string; 
   message: string; 
+  image_url?: string | null;
   link_url?: string | null; 
   link_text?: string 
 }) {
