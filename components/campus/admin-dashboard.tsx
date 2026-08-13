@@ -44,15 +44,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     try {
       let imageUrl: string | null = null
 
-      // Upload image file to Supabase Storage if selected
       if (imageFile) {
         const supabase = getSupabase()
         const fileExt = imageFile.name.split(".").pop()
-        const fileName = `${Math.random().toString(36.substring(2))}-${Date.now()}.${fileExt}`
+        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
         const filePath = `announcements/${fileName}`
 
         const { error: uploadError } = await supabase.storage
-          .from("listings") // using existing bucket or create a storage bucket named 'listings'
+          .from("listings")
           .upload(filePath, imageFile)
 
         if (uploadError) throw uploadError
