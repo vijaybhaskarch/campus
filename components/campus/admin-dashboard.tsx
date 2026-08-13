@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 import { deleteListing, fetchAllProfiles, fetchReviews, setBanned, fetchAnnouncements, createAnnouncement, deleteAnnouncement } from "@/lib/api"
 import { formatPrice, type Item } from "@/lib/campus-data"
 import { useSession } from "./session-provider"
+import { getSupabase } from "@/lib/supabase/client"
 
 type AdminTab = "users" | "listings" | "reviews" | "announcement"
 
@@ -16,7 +17,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const [title, setTitle] = useState("")
   const [message, setMessage] = useState("")
-  const [imageUrl, setImageUrl] = useState("")
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [linkUrl, setLinkUrl] = useState("")
   const [linkText, setLinkText] = useState("View Deal")
   const [submitting, setSubmitting] = useState(false)
@@ -41,16 +42,39 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     if (!message.trim()) return
     setSubmitting(true)
     try {
+      let imageUrl: string | null = null
+
+      // Upload image file to Supabase Storage if selected
+      if (imageFile) {
+        const supabase = getSupabase()
+        const fileExt = imageFile.name.split(".").pop()
+        const fileName = `${Math.random().toString(36.substring(2))}-${Date.now()}.${fileExt}`
+        const filePath = `announcements/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+          .from("listings") // using existing bucket or create a storage bucket named 'listings'
+          .upload(filePath, imageFile)
+
+        if (uploadError) throw uploadError
+
+        const { data: publicUrlData } = supabase.storage
+          .from("listings")
+          .getPublicUrl(filePath)
+
+        imageUrl = publicUrlData.publicUrl
+      }
+
       await createAnnouncement({
         title: title.trim() || "Platform Announcement",
         message: message.trim(),
-        image_url: imageUrl.trim() || null,
+        image_url: imageUrl,
         link_url: linkUrl.trim() || null,
         link_text: linkUrl.trim() ? (linkText.trim() || "View Deal") : "View Deal",
       })
+
       setTitle("")
       setMessage("")
-      setImageUrl("")
+      setImageFile(null)
       setLinkUrl("")
       setLinkText("View Deal")
       void reloadAnnouncements()
@@ -237,14 +261,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-                  <ImageIcon className="h-3.5 w-3.5" /> Image URL (Optional)
+                  <ImageIcon className="h-3.5 w-3.5" /> Attach Image (Optional)
                 </label>
                 <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                  className="mt-1 w-full text-xs text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -295,7 +318,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                           <p className="text-sm font-semibold text-card-foreground">{ann.title}</p>
                           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
                           
-                          {/* Image rendering if available */}
                           {ann.image_url && (
                             <img
                               src={ann.image_url}
@@ -304,7 +326,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             />
                           )}
 
-                          {/* Link button rendering only if link_url exists */}
                           {ann.link_url && (
                             <a
                               href={ann.link_url}
