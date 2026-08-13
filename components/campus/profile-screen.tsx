@@ -205,7 +205,7 @@ export function ProfileScreen() {
             </button>
           </div>
           <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
-            <p>Welcome to Facult Dashboard!</p>
+            <p>Welcome to Faculty Dashboard!</p>
           </div>
         </div>
       )}
