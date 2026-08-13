@@ -203,13 +203,9 @@ export function ProfileScreen() {
             >
               Back
             </button>
-          </div>
-          <div className="flex-1 flex items-center justify-center text-center text-muted-foreground">
-            <p>Welcome to Faculty Dashboard!</p>
-          </div>
-        </div>
+         {showFacultyDash && (
+        <AdminDashboard onBack={() => setShowFacultyDash(false)} />
       )}
-    </div>
   )
 }
 
