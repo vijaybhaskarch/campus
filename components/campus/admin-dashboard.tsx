@@ -12,7 +12,7 @@ import { getSupabase } from "@/lib/supabase/client"
 type AdminTab = "users" | "listings" | "reviews" | "announcement"
 
 export function AdminDashboard({ onBack }: { onBack: () => void }) {
-  const { user, listings, reloadListings } = useSession()
+  const { user, profile, isAdmin, listings, reloadListings } = useSession()
   const [tab, setTab] = useState<AdminTab>("users")
 
   const [title, setTitle] = useState("")
@@ -32,6 +32,10 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   }
 
   async function toggleFaculty(userId: string, currentRole: string) {
+    if (!isAdmin) {
+      alert("You do not have permission to change user roles.")
+      return
+    }
     const newRole = currentRole === "faculty" ? "user" : "faculty"
     const supabase = getSupabase()
     const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", userId)
@@ -43,6 +47,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   }
 
   async function removeListing(item: Item) {
+    if (!isAdmin) {
+      const isSuperAdminOwner = item.owner_username === "admin" || (item as any).is_super_admin_item;
+      if (isSuperAdminOwner) {
+        alert("You cannot delete listings owned by the Super Admin.")
+        return
+      }
+    }
     if (!confirm(`Delete "${item.title}" permanently?`)) return
     await deleteListing(item.id)
     reloadListings()
@@ -128,8 +139,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             <ChevronLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Admin Dashboard</h1>
-            <p className="text-xs text-muted-foreground">Super-admin controls</p>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              {isAdmin ? "Admin Dashboard" : "Faculty Dashboard"}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {isAdmin ? "Super-admin controls" : "Faculty management panel"}
+            </p>
           </div>
         </div>
 
@@ -161,6 +176,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             (profiles ?? []).map((p) => {
               const isMe = p.id === user?.id
               const isFaculty = p.role === "faculty"
+              const isSuperAdminTarget = (p as any).is_super_admin || p.email === "admin@campus.edu" // Replace with your super admin check if needed
+
               return (
                 <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold uppercase text-primary">
@@ -170,38 +187,42 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     <p className="truncate text-sm font-semibold text-card-foreground flex items-center gap-1.5">
                       @{p.username}
                       {isMe && <span className="text-[10px] font-medium text-muted-foreground">(you)</span>}
-                      {isFaculty && <span className="rounded-md bg-accent/20 px-1.5 py-0.5 text-[10px] font-bold text-accent">Faculty</span>}
+                      {isFaculty && <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-bold text-blue-500">Faculty</span>}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">{p.email}</p>
                     <p className="text-[11px] text-muted-foreground">{p.sold_count} sold</p>
                   </div>
                   {!isMe && (
                     <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => toggleFaculty(p.id, p.role)}
-                        className={cn(
-                          "inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold border",
-                          isFaculty ? "border-primary text-primary bg-primary/10" : "border-border text-muted-foreground hover:bg-secondary"
-                        )}
-                      >
-                        <GraduationCap className="h-4 w-4" />
-                        {isFaculty ? "Revoke Faculty" : "Make Faculty"}
-                      </button>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => toggleFaculty(p.id, p.role)}
+                          className={cn(
+                            "inline-flex shrink-0 items-center gap-1 rounded-xl px-2.5 py-2 text-xs font-semibold border",
+                            isFaculty ? "border-primary text-primary bg-primary/10" : "border-border text-muted-foreground hover:bg-secondary"
+                          )}
+                        >
+                          <GraduationCap className="h-4 w-4" />
+                          {isFaculty ? "Revoke" : "Make Faculty"}
+                        </button>
+                      )}
 
-                      <button
-                        type="button"
-                        onClick={() => toggleBan(p.id, !p.is_banned)}
-                        className={cn(
-                          "inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold",
-                          p.is_banned
-                            ? "border border-border text-foreground"
-                            : "bg-destructive text-destructive-foreground",
-                        )}
-                      >
-                        {p.is_banned ? <ShieldCheck className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
-                        {p.is_banned ? "Unban" : "Ban"}
-                      </button>
+                      {(!isSuperAdminTarget || isAdmin) && (
+                        <button
+                          type="button"
+                          onClick={() => toggleBan(p.id, !p.is_banned)}
+                          className={cn(
+                            "inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold",
+                            p.is_banned
+                              ? "border border-border text-foreground"
+                              : "bg-destructive text-destructive-foreground",
+                          )}
+                        >
+                          {p.is_banned ? <ShieldCheck className="h-4 w-4" /> : <Ban className="h-4 w-4" />}
+                          {p.is_banned ? "Unban" : "Ban"}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
