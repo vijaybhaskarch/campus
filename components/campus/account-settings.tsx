@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { X, Pencil, Trash2, AlertTriangle } from "lucide-react"
+import { X, Pencil, Trash2, AlertTriangle, PhoneCall } from "lucide-react"
 import { deleteAccount, updateUsername } from "@/lib/api"
+import { getSupabase } from "@/lib/supabase/client"
 
-type View = "menu" | "edit" | "delete"
+type View = "menu" | "edit" | "edit-phone" | "delete"
 
 export function AccountSettings({
   userId,
@@ -19,6 +20,7 @@ export function AccountSettings({
 }) {
   const [view, setView] = useState<View>("menu")
   const [username, setUsername] = useState(currentUsername)
+  const [phone, setPhone] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,12 +38,35 @@ export function AccountSettings({
     }
   }
 
+  async function savePhone() {
+    if (phone.trim().length < 10) {
+      setError("Please enter a valid phone number.")
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      const supabase = getSupabase()
+      const { error: updateErr } = await supabase
+        .from("profiles")
+        .update({ phone: phone.trim() })
+        .eq("id", userId)
+
+      if (updateErr) throw updateErr
+
+      onUsernameUpdated() // Profile data refresh అవ్వడానికి
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update phone number.")
+      setBusy(false)
+    }
+  }
+
   async function confirmDelete() {
     setBusy(true)
     setError(null)
     try {
       await deleteAccount(userId)
-      // signOut inside deleteAccount triggers the auth listener -> back to login.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete your account.")
       setBusy(false)
@@ -61,6 +86,14 @@ export function AccountSettings({
             >
               <Pencil className="h-5 w-5 text-muted-foreground" />
               <span className="flex-1 text-sm font-medium text-foreground">Edit Username</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("edit-phone")}
+              className="flex w-full items-center gap-3 border-b border-border px-4 py-3.5 text-left"
+            >
+              <PhoneCall className="h-5 w-5 text-muted-foreground" />
+              <span className="flex-1 text-sm font-medium text-foreground">Add / Update Phone Number</span>
             </button>
             <button
               type="button"
@@ -108,6 +141,50 @@ export function AccountSettings({
               type="button"
               onClick={saveUsername}
               disabled={username.trim().length < 3 || busy}
+              className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
+            >
+              {busy ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </>
+      )}
+
+      {view === "edit-phone" && (
+        <>
+          <h2 className="mb-4 text-lg font-bold text-foreground">Update Phone Number</h2>
+          <label htmlFor="new-phone" className="text-sm font-semibold text-foreground">
+            Phone Number
+          </label>
+          <input
+            id="new-phone"
+            type="tel"
+            placeholder="Enter 10-digit mobile number"
+            value={phone}
+            onChange={(e) => {
+              setPhone(e.target.value)
+              if (error) setError(null)
+            }}
+            maxLength={15}
+            autoFocus
+            className="input mt-2"
+          />
+          {error && (
+            <p role="alert" className="mt-2 text-sm font-medium text-destructive">
+              {error}
+            </p>
+          )}
+          <div className="mt-4 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setView("menu")}
+              className="flex-1 rounded-xl border border-border py-3 text-sm font-semibold text-foreground"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={savePhone}
+              disabled={phone.trim().length < 10 || busy}
               className="flex-1 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-40"
             >
               {busy ? "Saving…" : "Save"}
