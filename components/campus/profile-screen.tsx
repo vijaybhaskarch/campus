@@ -37,6 +37,10 @@ export function ProfileScreen() {
     return <AdminDashboard onBack={() => setShowAdmin(false)} />
   }
 
+  if (showFacultyDash) {
+    return <AdminDashboard onBack={() => setShowFacultyDash(false)} />
+  }
+
   const userId = user!.id
   const username = profile?.username ?? "student"
   const avatarUrl = (user?.user_metadata?.avatar_url as string | undefined) ?? null
@@ -148,7 +152,6 @@ export function ProfileScreen() {
           </button>
         )}
 
-        {/* ఫ్యాకల్టీకి ప్రత్యేకంగా డాష్‌బోర్డ్ బటన్ */}
         {isFaculty && (
           <button
             type="button"
@@ -182,7 +185,7 @@ export function ProfileScreen() {
         </button>
       </div>
 
-     {showSettings && (
+      {showSettings && (
         <AccountSettings
           userId={userId}
           currentUsername={username}
@@ -191,13 +194,10 @@ export function ProfileScreen() {
         />
       )}
       {showReview && <GiveReview userId={userId} username={username} onClose={() => setShowReview(false)} />}
-      
-      {showFacultyDash && (
-        <AdminDashboard onBack={() => setShowFacultyDash(false)} />
-      )}
     </div>
   )
 }
+
 function MenuButton({
   icon: Icon,
   label,
