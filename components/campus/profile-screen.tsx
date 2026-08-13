@@ -67,7 +67,7 @@ export function ProfileScreen() {
             <div className="flex-1">
               <p className="text-sm font-bold text-foreground">Phone Number Required!</p>
               <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-                దయచేసి మీ అకౌంట్ సెట్టింగ్స్‌కి వెళ్లి మీ ఫోన్ నంబర్ ఎంటర్ చేయండి. ఐటెమ్ రిక్వెస్ట్ చేసేటప్పుడు సెల్లర్‌కు ఇది తప్పనిసరి.
+                Please update your phone number in account settings. It is required when requesting items so sellers can contact you.
               </p>
               <button
                 type="button"
