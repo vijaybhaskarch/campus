@@ -194,21 +194,8 @@ export function ProfileScreen() {
       
       {/* ఒకవేళ ఫ్యాకల్టీ డాష్‌బోర్డ్ క్లిక్ చేస్తే ఏ స్క్రీన్ చూపించాలో ఇక్కడ సెట్ చేసుకోవచ్చు */}
       {showFacultyDash && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background p-5">
-          <div className="flex items-center justify-between pb-4 border-b border-border">
-            <h2 className="text-lg font-bold">Faculty Dashboard</h2>
-            <button 
-              onClick={() => setShowFacultyDash(false)}
-              className="text-sm font-semibold text-primary"
-            >
-              Back
-            </button>
-         {showFacultyDash && (
         <AdminDashboard onBack={() => setShowFacultyDash(false)} />
       )}
-  )
-}
-
 function MenuButton({
   icon: Icon,
   label,
