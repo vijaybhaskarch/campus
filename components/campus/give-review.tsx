@@ -4,6 +4,14 @@ import { useState } from "react"
 import { X, MessageSquareHeart, CheckCircle2 } from "lucide-react"
 import { submitReview } from "@/lib/api"
 
+const CATEGORIES = [
+  "Features",
+  "Feedback",
+  "Complaint to Faculty",
+  "Complaint to Admin",
+  "Other",
+] as const
+
 export function GiveReview({
   userId,
   username,
@@ -13,6 +21,7 @@ export function GiveReview({
   username: string
   onClose: () => void
 }) {
+  const [category, setCategory] = useState<string>("Feedback")
   const [message, setMessage] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
@@ -23,10 +32,10 @@ export function GiveReview({
     setSubmitting(true)
     setError(null)
     try {
-      await submitReview(userId, username, message)
+      await submitReview(userId, username, category, message)
       setDone(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not send your review. Please try again.")
+      setError(err instanceof Error ? err.message : "Could not send your message. Please try again.")
       setSubmitting(false)
     }
   }
@@ -36,9 +45,9 @@ export function GiveReview({
       {done ? (
         <div className="flex flex-col items-center gap-3 py-6 text-center">
           <CheckCircle2 className="size-10 text-accent" />
-          <h2 className="text-lg font-bold text-foreground">Thanks for your feedback</h2>
+          <h2 className="text-lg font-bold text-foreground">Message Sent Successfully</h2>
           <p className="text-sm text-muted-foreground text-pretty">
-            Your report has been sent to the admin team. We appreciate you helping keep the hub safe.
+            Your message has been sent to the admin team {category === "Complaint to Faculty" ? "and the faculty members" : ""}. Thank you!
           </p>
           <button
             type="button"
@@ -55,20 +64,39 @@ export function GiveReview({
               <MessageSquareHeart className="size-6" />
             </span>
             <div>
-              <h2 className="text-lg font-bold text-foreground">Give a review</h2>
-              <p className="text-xs text-muted-foreground">Report an issue or share feedback with the admin.</p>
+              <h2 className="text-lg font-bold text-foreground">Feedback & Complaints</h2>
+              <p className="text-xs text-muted-foreground">Select a category and share your message with us.</p>
             </div>
           </div>
+
+          {/* Categories Selection */}
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setCategory(cat)}
+                className={`rounded-xl px-3 py-1.5 text-xs font-medium transition-colors ${
+                  category === cat
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
           <textarea
             value={message}
             onChange={(e) => {
               setMessage(e.target.value)
               if (error) setError(null)
             }}
-            rows={5}
+            rows={4}
             autoFocus
-            placeholder="Describe the issue or feedback…"
-            className="input resize-none leading-relaxed"
+            placeholder="Type your message here..."
+            className="input resize-none leading-relaxed w-full rounded-xl border p-3 text-sm bg-background text-foreground"
           />
           {error && (
             <p role="alert" className="mt-2 text-sm font-medium text-destructive">
@@ -81,7 +109,7 @@ export function GiveReview({
             disabled={message.trim().length < 5 || submitting}
             className="mt-4 w-full rounded-2xl bg-primary py-3.5 text-sm font-bold text-primary-foreground disabled:opacity-40"
           >
-            {submitting ? "Sending…" : "Submit review"}
+            {submitting ? "Sending…" : "Submit Message"}
           </button>
         </>
       )}
