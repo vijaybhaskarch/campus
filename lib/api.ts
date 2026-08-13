@@ -27,8 +27,6 @@ export async function fetchProfile(userId: string): Promise<Profile | null> {
 export async function createProfile(userId: string, email: string, username: string): Promise<Profile> {
   const supabase = getSupabase()
   const clean = username.trim()
-  // upsert on the primary key (id) so a retry after a transient failure works,
-  // while a duplicate username still surfaces a clear "taken" message.
   const { data, error } = await supabase
     .from("profiles")
     .upsert({ id: userId, email, username: clean }, { onConflict: "id" })
@@ -42,17 +40,12 @@ export async function updateUsername(userId: string, username: string): Promise<
   const supabase = getSupabase()
   const clean = username.trim()
 
-  // 1) Persist to the profiles table (the source of truth for display).
   const { error } = await supabase.from("profiles").update({ username: clean }).eq("id", userId)
   if (error) throw friendlyError(error, "Could not update your username. Please try again.")
 
-  // 2) Mirror it into the Supabase Auth user metadata so it stays consistent
-  //    everywhere the session is read (e.g. right after OAuth).
   const { error: authError } = await supabase.auth.updateUser({ data: { username: clean } })
   if (authError) throw friendlyError(authError, "Saved your username, but could not sync your account. Try again.")
 
-  // 3) Denormalised copy on the user's own listings so the feed shows the new
-  //    name immediately without waiting for a re-fetch/join.
   await supabase.from("listings").update({ owner_username: clean }).eq("owner_id", userId)
 }
 
@@ -82,21 +75,16 @@ export async function createListing(input: {
 
 export async function requestListing(listing: Item, requesterId: string, requesterUsername: string): Promise<void> {
   const supabase = getSupabase()
-  // Atomically claim the listing ONLY if it's still available. `.select()`
-  // returns the rows that actually changed, so we can tell whether we won the
-  // claim or someone beat us to it — instead of silently succeeding on 0 rows.
   const { data: claimed, error } = await supabase
     .from("listings")
     .update({ status: "pending", requested_by: requesterId })
     .eq("id", listing.id)
-    .eq("status", "available") // guard: only claim if still available
+    .eq("status", "available")
     .select("id")
   if (error) throw new Error(error.message || "Could not send your request. Please try again.")
   if (!claimed || claimed.length === 0) {
     throw new Error("Sorry, this item was just requested by someone else.")
   }
-  // Only record the request (which drives the owner's notification) once the
-  // claim actually succeeded, so no phantom request rows are created.
   const { error: requestError } = await supabase.from("requests").insert({
     listing_id: listing.id,
     requester_id: requesterId,
@@ -109,7 +97,6 @@ export async function markSold(listing: Item): Promise<void> {
   const supabase = getSupabase()
   const { error } = await supabase.from("listings").update({ status: "sold" }).eq("id", listing.id)
   if (error) throw error
-  // Increment the owner's sold counter atomically.
   const { error: rpcError } = await supabase.rpc("increment_sold", { p_user_id: listing.owner_id })
   if (rpcError) throw rpcError
 }
@@ -130,12 +117,27 @@ export async function deleteListing(listingId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Reviews
+// Reviews & Complaints Routing
 // ---------------------------------------------------------------------------
-export async function submitReview(userId: string, username: string, message: string): Promise<void> {
+export async function submitReview(userId: string, username: string, category: string, message: string): Promise<void> {
   const supabase = getSupabase()
-  const { error } = await supabase.from("reviews").insert({ user_id: userId, username, message: message.trim() })
+  // ఏ ఆప్షన్ పెట్టినా సూపర్ అడ్మిన్ చూసే 'complaints' టేబుల్‌లో సేవ్ అవుతుంది
+  const { error } = await supabase.from("complaints").insert({ 
+    user_id: userId, 
+    username, 
+    category, 
+    message: message.trim() 
+  })
   if (error) throw error
+
+  // ఒకవేళ 'Complaint to Faculty' అయితే ఫ్యాకల్టీ టేబుల్‌కి కూడా వెళ్తుంది
+  if (category === "Complaint to Faculty") {
+    await supabase.from("faculty_complaints").insert({
+      user_id: userId,
+      username,
+      message: message.trim()
+    }).catch(() => {})
+  }
 }
 
 export async function fetchReviews(): Promise<Review[]> {
@@ -161,21 +163,11 @@ export async function setBanned(userId: string, banned: boolean): Promise<void> 
   if (error) throw error
 }
 
-// ---------------------------------------------------------------------------
-// Account deletion — permanently wipes ALL of the user's data (reviews,
-// requests, listings, profile) and the underlying auth.users row via the
-// `delete_own_account` security-definer function, then signs out locally.
-// If that function isn't present yet (schema not applied), we fall back to
-// wiping the data we can reach from the client so the account is still reset.
-// ---------------------------------------------------------------------------
 export async function deleteAccount(userId: string): Promise<void> {
   const supabase = getSupabase()
-
   const { error: rpcError } = await supabase.rpc("delete_own_account")
 
   if (rpcError) {
-    // Fallback path when the RPC isn't available: remove everything the
-    // client is allowed to delete directly.
     await supabase.from("reviews").delete().eq("user_id", userId)
     await supabase.from("requests").delete().eq("requester_id", userId)
     const { error: listingsError } = await supabase.from("listings").delete().eq("owner_id", userId)
@@ -184,13 +176,9 @@ export async function deleteAccount(userId: string): Promise<void> {
     if (profileError) throw profileError
   }
 
-  // Always end the local session so the user is returned to sign-in.
   await supabase.auth.signOut()
 }
 
-// ---------------------------------------------------------------------------
-// Live profile stats — real-time counts of the user's listings by status.
-// ---------------------------------------------------------------------------
 export interface ProfileStats {
   active: number
   pending: number
@@ -208,6 +196,7 @@ export async function fetchProfileStats(userId: string): Promise<ProfileStats> {
     sold: rows.filter((r) => r.status === "sold").length,
   }
 }
+
 // ---------------------------------------------------------------------------
 // Admin Announcements
 // ---------------------------------------------------------------------------
@@ -220,6 +209,7 @@ export async function fetchAnnouncements() {
   if (error) throw error
   return data
 }
+
 export async function createAnnouncement(announcement: { 
   title: string; 
   message: string; 
