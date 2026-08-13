@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import useSWR from "swr"
-import { ChevronLeft, Users, MessageSquareWarning, PackageSearch, Ban, ShieldCheck, Trash2, Loader2, Megaphone, Send } from "lucide-react"
+import { ChevronLeft, Users, MessageSquareWarning, PackageSearch, Ban, ShieldCheck, Trash2, Loader2, Megaphone, Send, Image as ImageIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { deleteListing, fetchAllProfiles, fetchReviews, setBanned, fetchAnnouncements, createAnnouncement, deleteAnnouncement } from "@/lib/api"
 import { formatPrice, type Item } from "@/lib/campus-data"
@@ -16,6 +16,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const [title, setTitle] = useState("")
   const [message, setMessage] = useState("")
+  const [imageUrl, setImageUrl] = useState("")
   const [linkUrl, setLinkUrl] = useState("")
   const [linkText, setLinkText] = useState("View Deal")
   const [submitting, setSubmitting] = useState(false)
@@ -43,11 +44,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       await createAnnouncement({
         title: title.trim() || "Platform Announcement",
         message: message.trim(),
+        image_url: imageUrl.trim() || null,
         link_url: linkUrl.trim() || null,
-        link_text: linkText.trim() || "View Deal",
+        link_text: linkUrl.trim() ? (linkText.trim() || "View Deal") : "View Deal",
       })
       setTitle("")
       setMessage("")
+      setImageUrl("")
       setLinkUrl("")
       setLinkText("View Deal")
       void reloadAnnouncements()
@@ -232,6 +235,18 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                  <ImageIcon className="h-3.5 w-3.5" /> Image URL (Optional)
+                </label>
+                <input
+                  type="url"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground">Link URL (Optional)</label>
@@ -244,13 +259,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground">Button Text</label>
+                  <label className="text-xs font-semibold text-muted-foreground">Button Text (Optional)</label>
                   <input
                     type="text"
                     value={linkText}
                     onChange={(e) => setLinkText(e.target.value)}
                     placeholder="Grab Now"
-                    className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    disabled={!linkUrl.trim()}
+                    className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                   />
                 </div>
               </div>
@@ -275,9 +291,20 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   {(announcements ?? []).map((ann) => (
                     <div key={ann.id} className="rounded-2xl border border-border bg-card p-3.5 shadow-sm relative group">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-card-foreground">{ann.title}</p>
                           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
+                          
+                          {/* Image rendering if available */}
+                          {ann.image_url && (
+                            <img
+                              src={ann.image_url}
+                              alt="Announcement attachment"
+                              className="mt-2.5 h-36 w-full rounded-xl object-cover"
+                            />
+                          )}
+
+                          {/* Link button rendering only if link_url exists */}
                           {ann.link_url && (
                             <a
                               href={ann.link_url}
