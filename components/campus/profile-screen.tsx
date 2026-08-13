@@ -10,6 +10,8 @@ import {
   ChevronRight,
   ShieldCheck,
   LogOut,
+  PhoneCall,
+  AlertTriangle,
 } from "lucide-react"
 import { getSupabase } from "@/lib/supabase/client"
 import { useSession } from "./session-provider"
@@ -26,8 +28,6 @@ export function ProfileScreen() {
 
   async function handleLogout() {
     setLoggingOut(true)
-    // Sign out of Supabase — the auth listener in SessionProvider instantly
-    // sends the app back to the Welcome / Sign-in screen.
     await getSupabase().auth.signOut()
   }
 
@@ -38,6 +38,9 @@ export function ProfileScreen() {
   const userId = user!.id
   const username = profile?.username ?? "student"
   const avatarUrl = (user?.user_metadata?.avatar_url as string | undefined) ?? null
+  
+  // ప్రొఫైల్ నుండి ఫోన్ నంబర్ చెక్ చేయడం (profile లో phone లేదా phone_number ఫీల్డ్ ఉంటే)
+  const phoneNumber = (profile as any)?.phone || (profile as any)?.phone_number || ""
 
   const mine = listings.filter((i) => i.owner_id === userId)
   const active = mine.filter((i) => i.status === "available").length
@@ -57,6 +60,26 @@ export function ProfileScreen() {
       </header>
 
       <div className="flex flex-col gap-5 px-5 pb-32">
+        {/* ఫోన్ నంబర్ లేకపోతే హెచ్చరిక అలర్ట్ బాక్స్ */}
+        {!phoneNumber && (
+          <div className="flex items-start gap-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 shadow-sm">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-500 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-bold text-foreground">Phone Number Required!</p>
+              <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                దయచేసి మీ అకౌంట్ సెట్టింగ్స్‌కి వెళ్లి మీ ఫోన్ నంబర్ ఎంటర్ చేయండి. ఐటెమ్ రిక్వెస్ట్ చేసేటప్పుడు సెల్లర్‌కు ఇది తప్పనిసరి.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowSettings(true)}
+                className="mt-2.5 inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm"
+              >
+                Add Phone Number →
+              </button>
+            </div>
+          </div>
+        )}
+
         <section className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
           {avatarUrl ? (
             <img
@@ -70,10 +93,17 @@ export function ProfileScreen() {
               {username.slice(0, 2)}
             </span>
           )}
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="truncate text-base font-bold text-foreground">@{username}</p>
+            {phoneNumber ? (
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                <PhoneCall className="h-3.5 w-3.5 text-primary" /> {phoneNumber}
+              </p>
+            ) : (
+              <p className="mt-0.5 text-xs text-amber-500 font-medium">Phone number missing</p>
+            )}
             {isAdmin && (
-              <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
                 <ShieldCheck className="h-3 w-3" />
                 Super-admin
               </span>
@@ -111,8 +141,8 @@ export function ProfileScreen() {
           <MenuButton icon={MessageSquareHeart} label="Give Review or Complaint on any User" onClick={() => setShowReview(true)} last />
         </section>
         <p className="text-xs text-muted-foreground px-1 -mt-3 leading-relaxed">
-  Hint: You can give complaint on any user and it is private and viewable only by the admin.
-</p>
+          Hint: You can give complaint on any user and it is private and viewable only by the admin.
+        </p>
 
         <button
           type="button"
