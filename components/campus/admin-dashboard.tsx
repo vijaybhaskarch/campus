@@ -60,7 +60,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   }
 
   async function removeListing(item: Item) {
-    // సూపర్ అడ్మిన్ (vijaybhaskar.ch9045@gmail.com లేదా admin) లిస్టింగ్స్ అయితే ఫ్యాకల్టీ డిలీట్ చేయడానికి వీలులేకుండా చెక్
     const isSuperAdminOwner = 
       item.owner_username === "admin" || 
       item.owner_username?.toLowerCase().includes("vijay") || 
@@ -75,11 +74,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
     try {
       const supabase = getSupabase()
-      // ఫ్యాకల్టీ కూడా డిలీట్ చేయడానికి వీలుగా డైరెక్ట్ Supabase ద్వారా డిలీట్ ప్రయత్నిస్తాము
       const { error } = await supabase.from("listings").delete().eq("id", item.id)
       
       if (error) {
-        // ఒకవేళ ఎర్రర్ వస్తే పాత API ఫంక్షన్ వాడతాం
         await deleteListing(item.id)
       }
       reloadListings()
@@ -213,16 +210,39 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold uppercase text-primary">
                     {p.username.slice(0, 2)}
                   </span>
-                  <div className="min-w-0 flex-1">
+                  
+                  {/* 4 Lines Layout for User Info */}
+                  <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+                    {/* Line 1: Username & (you) */}
                     <p className="truncate text-sm font-semibold text-card-foreground flex items-center gap-1.5">
                       @{p.username}
                       {isMe && <span className="text-[10px] font-medium text-muted-foreground">(you)</span>}
-                      {isFaculty && <span className="rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-bold text-blue-500">Faculty</span>}
-                      {isSuperAdminTarget && <span className="rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-bold text-amber-500">Super Admin</span>}
                     </p>
+                    
+                    {/* Line 2: Email */}
                     <p className="truncate text-xs text-muted-foreground">{p.email}</p>
+                    
+                    {/* Line 3: Sold count */}
                     <p className="text-[11px] text-muted-foreground">{p.sold_count} sold</p>
+                    
+                    {/* Line 4: Role Badge */}
+                    <div className="mt-0.5">
+                      {isSuperAdminTarget ? (
+                        <span className="inline-block rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-500">
+                          Super Admin
+                        </span>
+                      ) : isFaculty ? (
+                        <span className="inline-block rounded-md bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-500">
+                          Faculty
+                        </span>
+                      ) : (
+                        <span className="inline-block rounded-md bg-secondary px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                          User
+                        </span>
+                      )}
+                    </div>
                   </div>
+
                   {!isMe && (
                     <div className="flex items-center gap-1.5">
                       {isAdmin && !isSuperAdminTarget && (
@@ -271,6 +291,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                 item.owner_username?.toLowerCase().includes("vijay") || 
                 (item as any).is_super_admin_item;
 
+              const ownerRole = isSuperAdminOwner ? "Super Admin" : ((item as any).owner_role === "faculty" ? "Faculty" : "User");
+
               return (
                 <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
                   <img
@@ -280,11 +302,21 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   />
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-1 text-sm font-semibold text-card-foreground">{item.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      @{item.owner_username} · {formatPrice(item.price)} · {item.status}
-                    </p>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+                      <span>@{item.owner_username}</span>
+                      <span>·</span>
+                      <span className={cn(
+                        "rounded px-1.5 py-0.2 text-[10px] font-bold",
+                        ownerRole === "Super Admin" ? "bg-amber-500/10 text-amber-500" :
+                        ownerRole === "Faculty" ? "bg-blue-500/10 text-blue-500" : "bg-secondary text-muted-foreground"
+                      )}>
+                        {ownerRole}
+                      </span>
+                      <span>·</span>
+                      <span>{formatPrice(item.price)}</span>
+                    </div>
                   </div>
-                  {/* సూపర్ అడ్మిన్ లిస్టింగ్స్ అయితే ఫ్యాకల్టీకి డిలీట్ బటన్ కనిపించదు లేదా పనిచేయదు */}
+                  
                   {(!isAdmin && isSuperAdminOwner) ? null : (
                     <button
                       type="button"
