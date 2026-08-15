@@ -2,24 +2,17 @@
 
 import { useState } from "react"
 import useSWR from "swr"
-import { Trash2, AlertTriangle, UserMinus, UserCheck, Megaphone, Trash } from "lucide-react"
+import { Trash2 } from "lucide-react"
 import { 
   fetchReviews, 
   fetchFacultyComplaints, 
-  deleteReview, 
-  fetchAllProfiles, 
-  setBanned, 
-  fetchAnnouncements, 
-  createAnnouncement, 
-  deleteAnnouncement 
+  deleteReview 
 } from "@/lib/api"
-import { Spinner } from "@/components/ui/spinner"
-import { Empty } from "@/components/ui/empty"
 
-export default function AdminDashboard({ isAdmin, facultyId }: { isAdmin: boolean, facultyId?: string }) {
+export function AdminDashboard({ isAdmin, facultyId }: { isAdmin: boolean, facultyId?: string }) {
   const [tab, setTab] = useState("reviews")
 
-  // 1. రివ్యూస్/కంప్లైంట్స్ లాజిక్ (అడ్మిన్ అయితే అన్నీ, ఫ్యాకల్టీ అయితే ఓన్లీ వారివి)
+  // 1. రివ్యూస్/కంప్లైంట్స్ లాజిక్
   const { data: reviews, isLoading: reviewsLoading, mutate: reloadReviews } = useSWR(
     isAdmin ? "admin-reviews" : `faculty-reviews-${facultyId}`,
     isAdmin ? fetchReviews : () => fetchFacultyComplaints(facultyId!)
@@ -50,9 +43,11 @@ export default function AdminDashboard({ isAdmin, facultyId }: { isAdmin: boolea
       {tab === "reviews" && (
         <div className="grid gap-4">
           {reviewsLoading ? (
-            <Spinner />
+            <div className="flex justify-center p-6">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
           ) : !reviews || reviews.length === 0 ? (
-            <Empty label="ఏమీ లేవు" />
+            <div className="text-center p-6 text-muted-foreground text-sm">ఏమీ లేవు</div>
           ) : (
             reviews.map((r: any) => (
               <div key={r.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm relative">
