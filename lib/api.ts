@@ -136,7 +136,7 @@ export async function fetchReviews() {
 export async function submitReview(userId: string, username: string, category: string, message: string): Promise<void> {
   const supabase = getSupabase()
   
-  // 1. అన్ని రకాల మెసేజ్‌లు అడ్మిన్ చూసే 'complaints' టేబుల్‌లో సేవ్ అవుతాయి
+  // 1. అడ్మిన్ చూసే 'complaints' టేబుల్‌లో అన్ని మెసేజ్‌లు సేవ్ అవుతాయి
   const { error } = await supabase.from("complaints").insert({  
     user_id: userId, 
     username, 
@@ -145,16 +145,19 @@ export async function submitReview(userId: string, username: string, category: s
   })
   if (error) throw error
 
-  // 2. కేవలం 'Complaint to Faculty' అని సెలెక్ట్ చేస్తేనే ఫ్యాకల్టీ టేబుల్‌కి వెళ్తుంది
+  // 2. కేవలం 'Complaint to Faculty' అయితేనే ఫ్యాకల్టీ టేబుల్‌కి వెళ్తుంది (try-catch తో సేఫ్‌గా)
   if (category === "Complaint to Faculty") {
-    await supabase.from("faculty_complaints").insert({
-      user_id: userId,
-      username,
-      message: message.trim()
-    }).catch(() => {})
+    try {
+      await supabase.from("faculty_complaints").insert({
+        user_id: userId,
+        username,
+        message: message.trim()
+      })
+    } catch (err) {
+      console.error("Faculty complaint insert error:", err)
+    }
   }
 }
-
 export async function deleteReview(id: string): Promise<void> {
   const supabase = getSupabase()
   const { error } = await supabase.from("complaints").delete().eq("id", id)
