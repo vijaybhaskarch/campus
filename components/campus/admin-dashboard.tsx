@@ -4,7 +4,7 @@ import { useState } from "react"
 import useSWR from "swr"
 import { ChevronLeft, Users, MessageSquareWarning, PackageSearch, Ban, ShieldCheck, Trash2, Loader2, Megaphone, Send, Image as ImageIcon, GraduationCap } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { deleteListing, fetchAllProfiles, fetchComplaints, setBanned, fetchAnnouncements, createAnnouncement, deleteAnnouncement } from "@/lib/api"
+import { deleteListing, fetchAllProfiles, fetchReviews, setBanned, fetchAnnouncements, createAnnouncement, deleteAnnouncement } from "@/lib/api"
 import { formatPrice, type Item } from "@/lib/campus-data"
 import { useSession } from "./session-provider"
 import { getSupabase } from "@/lib/supabase/client"
@@ -23,7 +23,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [submitting, setSubmitting] = useState(false)
 
   const { data: profiles, mutate: reloadProfiles, isLoading: profilesLoading } = useSWR("admin-profiles", fetchAllProfiles)
- const { data: reviews, isLoading: reviewsLoading } = useSWR("admin-reviews", fetchComplaints)
+  const { data: reviews, isLoading: reviewsLoading } = useSWR("admin-reviews", fetchReviews)
   const { data: announcements, mutate: reloadAnnouncements, isLoading: announcementsLoading } = useSWR("admin-announcements", fetchAnnouncements)
 
   // పక్కాగా ఈమెయిల్ ఆధారంగా సూపర్ అడ్మిన్ అని చెక్ చేసే ఫంక్షన్
