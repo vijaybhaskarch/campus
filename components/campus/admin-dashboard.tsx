@@ -4,7 +4,7 @@ import { useState } from "react"
 import useSWR from "swr"
 import { ChevronLeft, Users, MessageSquareWarning, PackageSearch, Ban, ShieldCheck, Trash2, Loader2, Megaphone, Send, Image as ImageIcon, GraduationCap } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { deleteListing, fetchAllProfiles, fetchReviews, setBanned, fetchAnnouncements, createAnnouncement, deleteAnnouncement } from "@/lib/api"
+import { deleteListing, fetchAllProfiles, fetchReviews, deleteReview, setBanned, fetchAnnouncements, createAnnouncement, deleteAnnouncement } from "@/lib/api"
 import { formatPrice, type Item } from "@/lib/campus-data"
 import { useSession } from "./session-provider"
 import { getSupabase } from "@/lib/supabase/client"
@@ -23,7 +23,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [submitting, setSubmitting] = useState(false)
 
   const { data: profiles, mutate: reloadProfiles, isLoading: profilesLoading } = useSWR("admin-profiles", fetchAllProfiles)
-  const { data: reviews, isLoading: reviewsLoading } = useSWR("admin-reviews", fetchReviews)
+  const { data: reviews, mutate: reloadReviews, isLoading: reviewsLoading } = useSWR("admin-reviews", fetchReviews)
   const { data: announcements, mutate: reloadAnnouncements, isLoading: announcementsLoading } = useSWR("admin-announcements", fetchAnnouncements)
 
   function checkIsSuperAdmin(pEmail?: string | null) {
@@ -86,6 +86,17 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     } catch (err) {
       console.error("Failed to delete listing:", err)
       alert("Failed to delete listing.")
+    }
+  }
+
+  async function removeReview(reviewId: string) {
+    if (!confirm("Delete this review/complaint permanently?")) return
+    try {
+      await deleteReview(reviewId)
+      void reloadReviews()
+    } catch (err) {
+      console.error("Failed to delete review:", err)
+      alert("Failed to delete review.")
     }
   }
 
@@ -343,14 +354,32 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             <Empty label="No feedback submitted yet." />
           ) : (
             (reviews ?? []).map((r) => (
-              <div key={r.id} className="rounded-2xl border border-border bg-card p-3.5 shadow-sm">
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-sm font-semibold text-card-foreground">@{r.username}</p>
-                  <span className="shrink-0 text-[11px] text-muted-foreground">
-                    {new Date(r.created_at).toLocaleDateString()}
+              <div key={r.id} className="flex items-start justify-between gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-card-foreground">@{r.username}</p>
+                    {r.category && (
+                      <span className={cn(
+                        "rounded-md px-2 py-0.5 text-[10px] font-bold",
+                        r.category === "Complaint to Faculty" ? "bg-purple-500/10 text-purple-500" : "bg-primary/10 text-primary"
+                      )}>
+                        {r.category}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{r.message}</p>
+                  <span className="mt-2 block text-[10px] text-muted-foreground">
+                    {new Date(r.created_at).toLocaleString()}
                   </span>
                 </div>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{r.message}</p>
+                <button
+                  type="button"
+                  onClick={() => removeReview(r.id)}
+                  aria-label="Delete review"
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
             ))
           ))}
