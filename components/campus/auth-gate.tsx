@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Ban, Loader2 } from "lucide-react"
 import { getSupabase } from "@/lib/supabase/client"
 import { useSession } from "./session-provider"
@@ -10,11 +11,24 @@ import { PhoneShell } from "./phone-shell"
 
 export function AuthGate() {
   const { loading, user, profile, reloadProfile } = useSession()
+  const [isCheckingProfile, setIsCheckingProfile] = useState(true)
 
-  // యూజర్ లాగిన్ అయి ఉండి, ప్రొఫైల్ ఇంకా ఫెచ్ అవకపోతే కూడా లోడింగ్ చూపించాలి (బ్లింక్ రాకుండా)
-  const isProfileLoading = user && profile === undefined
+  useEffect(() => {
+    // యూజర్ లాగిన్ అయి ఉండి, ప్రొఫైల్ డేటా వచ్చే వరకు లేదా కొంచెం సేపు (ఉదాహరణకు 300ms) ఆగేలా చూస్తుంది
+    if (!loading) {
+      if (user) {
+        // ప్రొఫైల్ డేటా లోడ్ అయిందా లేదా అని చెక్ చేయడానికి ఒక చిన్న టైమర్
+        const timer = setTimeout(() => {
+          setIsCheckingProfile(false)
+        }, 300)
+        return () => clearTimeout(timer)
+      } else {
+        setIsCheckingProfile(false)
+      }
+    }
+  }, [loading, user, profile])
 
-  if (loading || isProfileLoading) {
+  if (loading || isCheckingProfile) {
     return (
       <PhoneShell>
         <div className="flex flex-1 items-center justify-center">
@@ -58,7 +72,7 @@ function BannedScreen() {
         <button
           type="button"
           onClick={signOut}
-          className="mt-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground"
+          className="mt-2 rounded-xl border border-border px-4 py.5 text-sm font-semibold text-foreground"
         >
           Sign out
         </button>
