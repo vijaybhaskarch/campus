@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Ban, Loader2 } from "lucide-react"
 import { getSupabase } from "@/lib/supabase/client"
 import { useSession } from "./session-provider"
@@ -11,24 +10,9 @@ import { PhoneShell } from "./phone-shell"
 
 export function AuthGate() {
   const { loading, user, profile, reloadProfile } = useSession()
-  const [isCheckingProfile, setIsCheckingProfile] = useState(true)
 
-  useEffect(() => {
-    // యూజర్ లాగిన్ అయి ఉండి, ప్రొఫైల్ డేటా వచ్చే వరకు లేదా కొంచెం సేపు (ఉదాహరణకు 300ms) ఆగేలా చూస్తుంది
-    if (!loading) {
-      if (user) {
-        // ప్రొఫైల్ డేటా లోడ్ అయిందా లేదా అని చెక్ చేయడానికి ఒక చిన్న టైమర్
-        const timer = setTimeout(() => {
-          setIsCheckingProfile(false)
-        }, 300)
-        return () => clearTimeout(timer)
-      } else {
-        setIsCheckingProfile(false)
-      }
-    }
-  }, [loading, user, profile])
-
-  if (loading || isCheckingProfile) {
+  // 1. ఒకవేళ మెయిన్ సెషన్ ఇంకా లోడ్ అవుతుంటే లోడింగ్ చూపించు
+  if (loading) {
     return (
       <PhoneShell>
         <div className="flex flex-1 items-center justify-center">
@@ -38,19 +22,34 @@ export function AuthGate() {
     )
   }
 
+  // 2. యూజర్ లాగిన్ అవకపోతే లాగిన్ స్క్రీన్ చూపించు
   if (!user) {
     return <LoginScreen />
   }
 
-  // Signed in but no profile row yet -> mandatory one-time onboarding.
-  if (!profile) {
+  // 3. **చాలా ముఖ్యం**: యూజర్ లాగిన్ అయ్యారు, కానీ `profile` ఇంకా సర్వర్ నుండి రాలేదు (అంటే `undefined` గా ఉంది). 
+  // అప్పుడు వెంటనే ఆన్-బోర్డింగ్ చూపించకుండా, ప్రొఫైల్ లోడ్ అయ్యే వరకు కొంచెం సేపు లోడింగ్ స్క్రీన్ చూపించాలి.
+  if (profile === undefined) {
+    return (
+      <PhoneShell>
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" aria-label="Loading" />
+        </div>
+      </PhoneShell>
+    )
+  }
+
+  // 4. ప్రొఫైల్ డేటా వచ్చాక, నిజంగానే ప్రొఫైల్ లేకపోతే (`null`) అప్పుడు మాత్రమే ఆన్-బోర్డింగ్ మోడల్ చూపించు
+  if (profile === null) {
     return <OnboardingModal user={user} onDone={reloadProfile} />
   }
 
+  // 5. యూజర్ బ్యాన్ అయి ఉంటే
   if (profile.is_banned) {
     return <BannedScreen />
   }
 
+  // 6. అన్నీ పర్ఫెక్ట్ గా ఉంటే నేరుగా యాప్ ఓపెన్ అవుతుంది
   return <CampusApp />
 }
 
@@ -72,7 +71,7 @@ function BannedScreen() {
         <button
           type="button"
           onClick={signOut}
-          className="mt-2 rounded-xl border border-border px-4 py.5 text-sm font-semibold text-foreground"
+          className="mt-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground"
         >
           Sign out
         </button>
