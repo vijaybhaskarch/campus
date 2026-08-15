@@ -11,7 +11,10 @@ import { PhoneShell } from "./phone-shell"
 export function AuthGate() {
   const { loading, user, profile, reloadProfile } = useSession()
 
-  if (loading) {
+  // యూజర్ లాగిన్ అయి ఉండి, ప్రొఫైల్ ఇంకా ఫెచ్ అవకపోతే కూడా లోడింగ్ చూపించాలి (బ్లింక్ రాకుండా)
+  const isProfileLoading = user && profile === undefined
+
+  if (loading || isProfileLoading) {
     return (
       <PhoneShell>
         <div className="flex flex-1 items-center justify-center">
@@ -49,7 +52,7 @@ function BannedScreen() {
         </div>
         <h1 className="text-xl font-bold tracking-tight">Account suspended</h1>
         <p className="text-sm leading-relaxed text-muted-foreground text-pretty">
-          Your access to Campus Share Hub has been blocked by an administrator. If you believe this is a mistake, please
+          Your access to Student Material System has been blocked by an administrator. If you believe this is a mistake, please
           contact your campus admin.
         </p>
         <button
