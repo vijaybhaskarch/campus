@@ -37,7 +37,7 @@ export function HomeScreen({
         <div className="flex items-baseline justify-between">
           <div>
             <p className="text-xs font-medium text-muted-foreground">Welcome back</p>
-            <h1 className="text-xl font-bold tracking-tight text-foreground">Campus Share Hub</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">Student Material System</h1>
           </div>
           <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">Live feed</span>
         </div>
