@@ -121,16 +121,17 @@ export async function deleteListing(listingId: string): Promise<void> {
 // ---------------------------------------------------------------------------
 export async function submitReview(userId: string, username: string, category: string, message: string): Promise<void> {
   const supabase = getSupabase()
-  // ఏ ఆప్షన్ పెట్టినా సూపర్ అడ్మిన్ చూసే 'complaints' టేబుల్‌లో సేవ్ అవుతుంది
-  const { error } = await supabase.from("complaints").insert({ 
+  
+  // 1. అడ్మిన్ చూసే 'complaints' టేబుల్‌లో పర్ఫెక్ట్‌గా సేవ్ అవుతుంది
+  const { error } = await supabase.from("complaints").insert({  
     user_id: userId, 
     username, 
     category, 
-    message: message.trim() 
+    message: message.trim()  
   })
   if (error) throw error
 
-  // ఒకవేళ 'Complaint to Faculty' అయితే ఫ్యాకల్టీ టేబుల్‌కి కూడా వెళ్తుంది
+  // 2. ఒకవేళ 'Complaint to Faculty' అయితే ఫ్యాకల్టీ టేబుల్‌కి కూడా వెళ్తుంది
   if (category === "Complaint to Faculty") {
     await supabase.from("faculty_complaints").insert({
       user_id: userId,
@@ -138,40 +139,6 @@ export async function submitReview(userId: string, username: string, category: s
       message: message.trim()
     }).catch(() => {})
   }
-}
-
-export async function fetchReviews(): Promise<Review[]> {
-  const supabase = getSupabase()
-  const { data, error } = await supabase.from("reviews").select("*").order("created_at", { ascending: false })
-  if (error) throw error
-  return (data ?? []) as Review[]
-}
-
-// కొత్తగా అడ్మిన్/ఫ్యాకల్టీ కంప్లైంట్స్ తెచ్చుకోవడానికి మరియు డిలీట్ చేయడానికి ఫంక్షన్స్
-export async function fetchComplaints() {
-  const supabase = getSupabase()
-  const { data, error } = await supabase.from("complaints").select("*").order("created_at", { ascending: false })
-  if (error) throw error
-  return data ?? []
-}
-
-export async function deleteComplaint(id: string) {
-  const supabase = getSupabase()
-  const { error } = await supabase.from("complaints").delete().eq("id", id)
-  if (error) throw error
-}
-
-export async function fetchFacultyComplaints() {
-  const supabase = getSupabase()
-  const { data, error } = await supabase.from("faculty_complaints").select("*").order("created_at", { ascending: false })
-  if (error) throw error
-  return data ?? []
-}
-
-export async function deleteFacultyComplaint(id: string) {
-  const supabase = getSupabase()
-  const { error } = await supabase.from("faculty_complaints").delete().eq("id", id)
-  if (error) throw error
 }
 // ---------------------------------------------------------------------------
 // Admin
