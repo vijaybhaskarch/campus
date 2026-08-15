@@ -60,16 +60,33 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   }
 
   async function removeListing(item: Item) {
-    if (!isAdmin) {
-      const isSuperAdminOwner = item.owner_username === "admin" || (item as any).is_super_admin_item;
-      if (isSuperAdminOwner) {
-        alert("You cannot delete listings owned by the Super Admin.")
-        return
-      }
+    // సూపర్ అడ్మిన్ (vijaybhaskar.ch9045@gmail.com లేదా admin) లిస్టింగ్స్ అయితే ఫ్యాకల్టీ డిలీట్ చేయడానికి వీలులేకుండా చెక్
+    const isSuperAdminOwner = 
+      item.owner_username === "admin" || 
+      item.owner_username?.toLowerCase().includes("vijay") || 
+      (item as any).is_super_admin_item;
+
+    if (!isAdmin && isSuperAdminOwner) {
+      alert("You cannot delete listings owned by the Super Admin.")
+      return
     }
+
     if (!confirm(`Delete "${item.title}" permanently?`)) return
-    await deleteListing(item.id)
-    reloadListings()
+
+    try {
+      const supabase = getSupabase()
+      // ఫ్యాకల్టీ కూడా డిలీట్ చేయడానికి వీలుగా డైరెక్ట్ Supabase ద్వారా డిలీట్ ప్రయత్నిస్తాము
+      const { error } = await supabase.from("listings").delete().eq("id", item.id)
+      
+      if (error) {
+        // ఒకవేళ ఎర్రర్ వస్తే పాత API ఫంక్షన్ వాడతాం
+        await deleteListing(item.id)
+      }
+      reloadListings()
+    } catch (err) {
+      console.error("Failed to delete listing:", err)
+      alert("Failed to delete listing.")
+    }
   }
 
   async function handleSendAnnouncement(e: React.FormEvent) {
@@ -189,8 +206,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             (profiles ?? []).map((p) => {
               const isMe = p.id === user?.id
               const isFaculty = p.role === "faculty"
-              
-              // సూపర్ అడ్మిన్ ఈమెయిల్ ని ఇక్కడ స్పష్టంగా చెక్ చేస్తున్నాము
               const isSuperAdminTarget = p.email === "vijaybhaskar.ch9045@gmail.com" || (p as any).is_super_admin
 
               return (
@@ -224,7 +239,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                         </button>
                       )}
 
-                      {/* సూపర్ అడ్మిన్ అయితే బన్ బటన్ అసలు చూపించదు */}
                       {!isSuperAdminTarget && (
                         <button
                           type="button"
@@ -251,29 +265,39 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
           (listings.length === 0 ? (
             <Empty label="No listings on the platform yet." />
           ) : (
-            listings.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
-                <img
-                  src={item.image || "/placeholder.svg"}
-                  alt={item.title}
-                  className="h-14 w-11 shrink-0 rounded-lg object-cover"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="line-clamp-1 text-sm font-semibold text-card-foreground">{item.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    @{item.owner_username} · {formatPrice(item.price)} · {item.status}
-                  </p>
+            listings.map((item) => {
+              const isSuperAdminOwner = 
+                item.owner_username === "admin" || 
+                item.owner_username?.toLowerCase().includes("vijay") || 
+                (item as any).is_super_admin_item;
+
+              return (
+                <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
+                  <img
+                    src={item.image || "/placeholder.svg"}
+                    alt={item.title}
+                    className="h-14 w-11 shrink-0 rounded-lg object-cover"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-1 text-sm font-semibold text-card-foreground">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      @{item.owner_username} · {formatPrice(item.price)} · {item.status}
+                    </p>
+                  </div>
+                  {/* సూపర్ అడ్మిన్ లిస్టింగ్స్ అయితే ఫ్యాకల్టీకి డిలీట్ బటన్ కనిపించదు లేదా పనిచేయదు */}
+                  {(!isAdmin && isSuperAdminOwner) ? null : (
+                    <button
+                      type="button"
+                      onClick={() => removeListing(item)}
+                      aria-label="Delete listing"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive text-destructive-foreground hover:opacity-90"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeListing(item)}
-                  aria-label="Delete listing"
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive text-destructive-foreground"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))
+              )
+            })
           ))}
 
         {tab === "reviews" &&
