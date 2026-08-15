@@ -11,8 +11,11 @@ import { PhoneShell } from "./phone-shell"
 export function AuthGate() {
   const { loading, user, profile, reloadProfile } = useSession()
 
-  // 1. సెషన్ లోడ్ అవుతున్నా లేదా ప్రొఫైల్ ఇంకా సర్వర్ నుండి రాకపోయినా (undefined) లోడింగ్ చూపిస్తుంది.
-  if (loading || (user && profile === undefined)) {
+  // 1. సెషన్ లోడ్ అవుతున్నా, లేదా యూజర్ ఉండి ప్రొఫైల్ ఇంకా సర్వర్ నుంచి రాకపోయినా (undefined) 
+  // కచ్చితంగా లోడింగ్ లోనే ఉంచుతాం. ఒక్క మిల్లీసెకండ్ కూడా వేరే స్క్రీన్ కనిపించదు.
+  const isInitializing = loading || (user !== null && profile === undefined)
+
+  if (isInitializing) {
     return (
       <PhoneShell>
         <div className="flex flex-1 items-center justify-center">
@@ -27,7 +30,7 @@ export function AuthGate() {
     return <LoginScreen />
   }
 
-  // 3. ప్రొఫైల్ డేటా అస్సలు లేకపోతే మాత్రమే OnboardingModal కి వెళ్తుంది
+  // 3. డేటా పూర్తిగా వచ్చాక, ప్రొఫైల్ నిజంగానే లేకపోతే (`null`) అప్పుడు మాత్రమే ఆన్-బోర్డింగ్
   if (profile === null) {
     return <OnboardingModal user={user} onDone={reloadProfile} />
   }
@@ -37,7 +40,7 @@ export function AuthGate() {
     return <BannedScreen />
   }
 
-  // 5. అన్నీ పర్ఫెక్ట్ గా ఉంటే నేరుగా యాప్ ఓపెన్ అవుతుంది
+  // 5. అన్నీ పర్ఫెక్ట్ గా ఉంటే నేరుగా క్యాంపస్ యాప్ ఓపెన్ అవుతుంది
   return <CampusApp />
 }
 
