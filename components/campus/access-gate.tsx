@@ -79,7 +79,7 @@ export function AccessGate({ children }: { children: React.ReactNode }) {
             <div className="mb-6 flex size-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25">
               <GraduationCap className="size-8" aria-hidden />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-balance">Campus Share Hub</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-balance">Student Material System</h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground text-pretty">
               This hub is for verified students only. Enter your college passcode to continue.
             </p>
