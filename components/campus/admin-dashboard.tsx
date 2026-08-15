@@ -26,6 +26,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const { data: reviews, isLoading: reviewsLoading } = useSWR("admin-reviews", fetchReviews)
   const { data: announcements, mutate: reloadAnnouncements, isLoading: announcementsLoading } = useSWR("admin-announcements", fetchAnnouncements)
 
+  // పక్కాగా ఈమెయిల్ ఆధారంగా సూపర్ అడ్మిన్ అని చెక్ చేసే ఫంక్షన్
+  function checkIsSuperAdmin(pEmail?: string | null, pUsername?: string | null) {
+    if (!pEmail) return false;
+    const lowerEmail = pEmail.toLowerCase().trim();
+    return lowerEmail === "vijaybhaskar.ch9045@gmail.com";
+  }
+
   async function toggleBan(userId: string, banned: boolean) {
     try {
       const supabase = getSupabase()
@@ -60,10 +67,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   }
 
   async function removeListing(item: Item) {
-    const isSuperAdminOwner = 
-      item.owner_username === "admin" || 
-      item.owner_username?.toLowerCase().includes("vijay") || 
-      (item as any).is_super_admin_item;
+    // లిస్టింగ్ ఓనర్ ఈమెయిల్ లేదా ప్రొఫైల్ కనుగొనుట
+    const ownerProfile = profiles?.find(p => p.username.toLowerCase() === item.owner_username?.toLowerCase());
+    const isSuperAdminOwner = checkIsSuperAdmin(ownerProfile?.email, item.owner_username);
 
     if (!isAdmin && isSuperAdminOwner) {
       alert("You cannot delete listings owned by the Super Admin.")
@@ -203,7 +209,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             (profiles ?? []).map((p) => {
               const isMe = p.id === user?.id
               const isFaculty = p.role === "faculty"
-              const isSuperAdminTarget = p.email === "vijaybhaskar.ch9045@gmail.com" || (p as any).is_super_admin
+              const isSuperAdminTarget = checkIsSuperAdmin(p.email, p.username)
 
               return (
                 <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
@@ -211,7 +217,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     {p.username.slice(0, 2)}
                   </span>
                   
-                  {/* 4 Lines Layout for User Info */}
+                  {/* 4 Lines Layout */}
                   <div className="min-w-0 flex-1 flex flex-col gap-0.5">
                     {/* Line 1: Username & (you) */}
                     <p className="truncate text-sm font-semibold text-card-foreground flex items-center gap-1.5">
@@ -286,12 +292,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             <Empty label="No listings on the platform yet." />
           ) : (
             listings.map((item) => {
-              const isSuperAdminOwner = 
-                item.owner_username === "admin" || 
-                item.owner_username?.toLowerCase().includes("vijay") || 
-                (item as any).is_super_admin_item;
+              // ప్రొఫైల్స్ నుంచి ఓనర్ ఈమెయిల్ ని పట్టుకుని సరిగ్గా చెక్ చేయడం
+              const ownerProfile = profiles?.find(p => p.username.toLowerCase() === item.owner_username?.toLowerCase());
+              const isSuperAdminOwner = checkIsSuperAdmin(ownerProfile?.email, item.owner_username);
+              const isFacultyOwner = ownerProfile?.role === "faculty";
 
-              const ownerRole = isSuperAdminOwner ? "Super Admin" : ((item as any).owner_role === "faculty" ? "Faculty" : "User");
+              const ownerRole = isSuperAdminOwner ? "Super Admin" : (isFacultyOwner ? "Faculty" : "User");
 
               return (
                 <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
