@@ -30,10 +30,10 @@ export function AuthGate() {
         <div className="flex flex-1 flex-col items-center justify-center gap-4 bg-black text-white">
           {/* ఇక్కడ మీరు కావాలంటే లోడింగ్ వీడియో లేదా మీ లోగో పెట్టుకోవచ్చు */}
           <div className="relative flex size-20 items-center justify-center rounded-2xl bg-white/10 shadow-2xl animate-pulse">
-            <span className="text-2xl font-bold">CSH</span>
+            <span className="text-2xl font-bold">SMS</span>
           </div>
           <Loader2 className="size-6 animate-spin text-zinc-400" aria-label="Loading" />
-          <p className="text-xs text-zinc-400 tracking-wider">Loading your campus...</p>
+          <p className="text-xs text-zinc-400 tracking-wider">Loading your Student Material System.........</p>
         </div>
       </PhoneShell>
     )
@@ -67,8 +67,8 @@ function BannedScreen() {
         </div>
         <h1 className="text-xl font-bold tracking-tight">Account suspended</h1>
         <p className="text-sm leading-relaxed text-muted-foreground text-pretty">
-          Your access to Campus Share Hub has been blocked by an administrator. If you believe this is a mistake, please
-          contact your campus admin.
+          Your access to Student Material System has been blocked by an administrator. If you believe this is a mistake,contact your 
+          Super-admin.
         </p>
         <button
           type="button"
