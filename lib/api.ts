@@ -115,6 +115,10 @@ export async function deleteListing(listingId: string): Promise<void> {
   const { error } = await supabase.from("listings").delete().eq("id", listingId)
   if (error) throw error
 }
+
+// ---------------------------------------------------------------------------
+// Reviews & Complaints Routing
+// ---------------------------------------------------------------------------
 export async function fetchReviews() {
   const supabase = getSupabase()
   const { data, error } = await supabase
@@ -128,13 +132,11 @@ export async function fetchReviews() {
   }
   return data || []
 }
-// ---------------------------------------------------------------------------
-// Reviews & Complaints Routing
-// ---------------------------------------------------------------------------
+
 export async function submitReview(userId: string, username: string, category: string, message: string): Promise<void> {
   const supabase = getSupabase()
   
-  // 1. అడ్మిన్ చూసే 'complaints' టేబుల్‌లో పర్ఫెక్ట్‌గా సేవ్ అవుతుంది
+  // 1. అన్ని రకాల మెసేజ్‌లు అడ్మిన్ చూసే 'complaints' టేబుల్‌లో సేవ్ అవుతాయి
   const { error } = await supabase.from("complaints").insert({  
     user_id: userId, 
     username, 
@@ -143,7 +145,7 @@ export async function submitReview(userId: string, username: string, category: s
   })
   if (error) throw error
 
-  // 2. ఒకవేళ 'Complaint to Faculty' అయితే ఫ్యాకల్టీ టేబుల్‌కి కూడా వెళ్తుంది
+  // 2. కేవలం 'Complaint to Faculty' అని సెలెక్ట్ చేస్తేనే ఫ్యాకల్టీ టేబుల్‌కి వెళ్తుంది
   if (category === "Complaint to Faculty") {
     await supabase.from("faculty_complaints").insert({
       user_id: userId,
@@ -152,6 +154,27 @@ export async function submitReview(userId: string, username: string, category: s
     }).catch(() => {})
   }
 }
+
+export async function deleteReview(id: string): Promise<void> {
+  const supabase = getSupabase()
+  const { error } = await supabase.from("complaints").delete().eq("id", id)
+  if (error) throw error
+}
+
+export async function fetchFacultyComplaints() {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from("faculty_complaints")
+    .select("*")
+    .order("created_at", { ascending: false })
+  
+  if (error) {
+    console.error("Error fetching faculty complaints:", error)
+    return []
+  }
+  return data || []
+}
+
 // ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------
