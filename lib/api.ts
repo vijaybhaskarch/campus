@@ -147,6 +147,32 @@ export async function fetchReviews(): Promise<Review[]> {
   return (data ?? []) as Review[]
 }
 
+// కొత్తగా అడ్మిన్/ఫ్యాకల్టీ కంప్లైంట్స్ తెచ్చుకోవడానికి మరియు డిలీట్ చేయడానికి ఫంక్షన్స్
+export async function fetchComplaints() {
+  const supabase = getSupabase()
+  const { data, error } = await supabase.from("complaints").select("*").order("created_at", { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function deleteComplaint(id: string) {
+  const supabase = getSupabase()
+  const { error } = await supabase.from("complaints").delete().eq("id", id)
+  if (error) throw error
+}
+
+export async function fetchFacultyComplaints() {
+  const supabase = getSupabase()
+  const { data, error } = await supabase.from("faculty_complaints").select("*").order("created_at", { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function deleteFacultyComplaint(id: string) {
+  const supabase = getSupabase()
+  const { error } = await supabase.from("faculty_complaints").delete().eq("id", id)
+  if (error) throw error
+}
 // ---------------------------------------------------------------------------
 // Admin
 // ---------------------------------------------------------------------------
