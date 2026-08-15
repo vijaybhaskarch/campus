@@ -115,7 +115,19 @@ export async function deleteListing(listingId: string): Promise<void> {
   const { error } = await supabase.from("listings").delete().eq("id", listingId)
   if (error) throw error
 }
-
+export async function fetchReviews() {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from("complaints")
+    .select("*")
+    .order("created_at", { ascending: false })
+  
+  if (error) {
+    console.error("Error fetching reviews:", error)
+    return []
+  }
+  return data || []
+}
 // ---------------------------------------------------------------------------
 // Reviews & Complaints Routing
 // ---------------------------------------------------------------------------
