@@ -27,10 +27,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const { data: announcements, mutate: reloadAnnouncements, isLoading: announcementsLoading } = useSWR("admin-announcements", fetchAnnouncements)
 
   // పక్కాగా ఈమెయిల్ ఆధారంగా సూపర్ అడ్మిన్ అని చెక్ చేసే ఫంక్షన్
-  function checkIsSuperAdmin(pEmail?: string | null, pUsername?: string | null) {
+  function checkIsSuperAdmin(pEmail?: string | null) {
     if (!pEmail) return false;
-    const lowerEmail = pEmail.toLowerCase().trim();
-    return lowerEmail === "vijaybhaskar.ch9045@gmail.com";
+    return pEmail.toLowerCase().trim() === "vijaybhaskar.ch9045@gmail.com";
   }
 
   async function toggleBan(userId: string, banned: boolean) {
@@ -67,10 +66,10 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   }
 
   async function removeListing(item: Item) {
-    // లిస్టింగ్ ఓనర్ ఈమెయిల్ లేదా ప్రొఫైల్ కనుగొనుట
     const ownerProfile = profiles?.find(p => p.username.toLowerCase() === item.owner_username?.toLowerCase());
-    const isSuperAdminOwner = checkIsSuperAdmin(ownerProfile?.email, item.owner_username);
+    const isSuperAdminOwner = checkIsSuperAdmin(ownerProfile?.email);
 
+    // అడ్మిన్ పెట్టిన లిస్టింగ్ అయితే ఫ్యాకల్టీ అసలు డిలీట్ చేయడానికి వీల్లేదు
     if (!isAdmin && isSuperAdminOwner) {
       alert("You cannot delete listings owned by the Super Admin.")
       return
@@ -141,10 +140,19 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   }
 
-  async function handleDeleteAnnouncement(id: string) {
-    if (!confirm("Delete this announcement for all users?")) return
+  async function handleDeleteAnnouncement(ann: any) {
+    // అనౌన్స్‌మెంట్ పెట్టినవాడు అడ్మిన్ అయి ఉండి, లాగిన్ అయిన వ్యక్తి సూపర్ అడ్మిన్ కాకపోతే డిలీట్ చేయడానికి కుదరదు
+    const creatorProfile = profiles?.find(p => p.id === ann.user_id || p.username.toLowerCase() === ann.username?.toLowerCase());
+    const isAdminAnnouncement = checkIsSuperAdmin(creatorProfile?.email) || ann.is_admin || ann.username === "admin";
+
+    if (!isAdmin && isAdminAnnouncement) {
+      alert("You cannot delete announcements posted by the Super Admin.")
+      return
+    }
+
+    if (!confirm("Delete this announcement?")) return
     try {
-      await deleteAnnouncement(id)
+      await deleteAnnouncement(ann.id)
       void reloadAnnouncements()
     } catch (err) {
       console.error(err)
@@ -209,7 +217,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             (profiles ?? []).map((p) => {
               const isMe = p.id === user?.id
               const isFaculty = p.role === "faculty"
-              const isSuperAdminTarget = checkIsSuperAdmin(p.email, p.username)
+              const isSuperAdminTarget = checkIsSuperAdmin(p.email)
 
               return (
                 <div key={p.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
@@ -217,21 +225,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     {p.username.slice(0, 2)}
                   </span>
                   
-                  {/* 4 Lines Layout */}
                   <div className="min-w-0 flex-1 flex flex-col gap-0.5">
-                    {/* Line 1: Username & (you) */}
                     <p className="truncate text-sm font-semibold text-card-foreground flex items-center gap-1.5">
                       @{p.username}
                       {isMe && <span className="text-[10px] font-medium text-muted-foreground">(you)</span>}
                     </p>
-                    
-                    {/* Line 2: Email */}
                     <p className="truncate text-xs text-muted-foreground">{p.email}</p>
-                    
-                    {/* Line 3: Sold count */}
                     <p className="text-[11px] text-muted-foreground">{p.sold_count} sold</p>
-                    
-                    {/* Line 4: Role Badge */}
                     <div className="mt-0.5">
                       {isSuperAdminTarget ? (
                         <span className="inline-block rounded-md bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-500">
@@ -292,12 +292,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             <Empty label="No listings on the platform yet." />
           ) : (
             listings.map((item) => {
-              // ప్రొఫైల్స్ నుంచి ఓనర్ ఈమెయిల్ ని పట్టుకుని సరిగ్గా చెక్ చేయడం
               const ownerProfile = profiles?.find(p => p.username.toLowerCase() === item.owner_username?.toLowerCase());
-              const isSuperAdminOwner = checkIsSuperAdmin(ownerProfile?.email, item.owner_username);
+              const isSuperAdminOwner = checkIsSuperAdmin(ownerProfile?.email);
               const isFacultyOwner = ownerProfile?.role === "faculty";
 
               const ownerRole = isSuperAdminOwner ? "Super Admin" : (isFacultyOwner ? "Faculty" : "User");
+              
+              // అడ్మిన్ ఓనర్ అయితే మరియు మనం సూపర్ అడ్మిన్ కాకపోతే డిలీట్ బటన్ చూపించకూడదు
+              const hideDeleteButton = !isAdmin && isSuperAdminOwner;
 
               return (
                 <div key={item.id} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-sm">
@@ -323,7 +325,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                     </div>
                   </div>
                   
-                  {(!isAdmin && isSuperAdminOwner) ? null : (
+                  {!hideDeleteButton && (
                     <button
                       type="button"
                       onClick={() => removeListing(item)}
@@ -359,75 +361,77 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
         {tab === "announcement" && (
           <div className="flex flex-col gap-4">
-            <form onSubmit={handleSendAnnouncement} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
-              <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Megaphone className="h-4 w-4 text-primary" />
-                Broadcast to All Users
-              </h2>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground">Title</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter title"
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground">Message</label>
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Type your message for all users here..."
-                  rows={3}
-                  required
-                  className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-                  <ImageIcon className="h-3.5 w-3.5" /> Attach Image (Optional)
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                  className="mt-1 w-full text-xs text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {isAdmin && (
+              <form onSubmit={handleSendAnnouncement} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+                <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Megaphone className="h-4 w-4 text-primary" />
+                  Broadcast to All Users
+                </h2>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground">Link URL (Optional)</label>
+                  <label className="text-xs font-semibold text-muted-foreground">Title</label>
                   <input
-                    type="url"
-                    value={linkUrl}
-                    onChange={(e) => setLinkUrl(e.target.value)}
-                    placeholder="https"
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Enter title"
                     className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground">Button Text (Optional)</label>
-                  <input
-                    type="text"
-                    value={linkText}
-                    onChange={(e) => setLinkText(e.target.value)}
-                    placeholder="View"
-                    disabled={!linkUrl.trim()}
-                    className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                  <label className="text-xs font-semibold text-muted-foreground">Message</label>
+                  <textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Type your message for all users here..."
+                    rows={3}
+                    required
+                    className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
-              </div>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-50"
-              >
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                Send to All Users
-              </button>
-            </form>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
+                    <ImageIcon className="h-3.5 w-3.5" /> Attach Image (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                    className="mt-1 w-full text-xs text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90"
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground">Link URL (Optional)</label>
+                    <input
+                      type="url"
+                      value={linkUrl}
+                      onChange={(e) => setLinkUrl(e.target.value)}
+                      placeholder="https"
+                      className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-muted-foreground">Button Text (Optional)</label>
+                    <input
+                      type="text"
+                      value={linkText}
+                      onChange={(e) => setLinkText(e.target.value)}
+                      placeholder="View"
+                      disabled={!linkUrl.trim()}
+                      className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-50"
+                >
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  Send to All Users
+                </button>
+              </form>
+            )}
 
             <div className="mt-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1 mb-2">Previous Broadcasts</h3>
@@ -437,46 +441,55 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                 <Empty label="No announcements sent yet." />
               ) : (
                 <div className="flex flex-col gap-2.5">
-                  {(announcements ?? []).map((ann) => (
-                    <div key={ann.id} className="rounded-2xl border border-border bg-card p-3.5 shadow-sm relative group">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-card-foreground">{ann.title}</p>
-                          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
-                          
-                          {ann.image_url && (
-                            <img
-                              src={ann.image_url}
-                              alt="Announcement attachment"
-                              className="mt-2.5 h-36 w-full rounded-xl object-cover"
-                            />
-                          )}
+                  {(announcements ?? []).map((ann) => {
+                    const creatorProfile = profiles?.find(p => p.id === ann.user_id || p.username.toLowerCase() === ann.username?.toLowerCase());
+                    const isAdminAnnouncement = checkIsSuperAdmin(creatorProfile?.email) || ann.is_admin || ann.username === "admin";
+                    const hideDeleteAnn = !isAdmin && isAdminAnnouncement;
 
-                          {ann.link_url && (
-                            <a
-                              href={ann.link_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="mt-2.5 inline-flex items-center rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20"
+                    return (
+                      <div key={ann.id} className="rounded-2xl border border-border bg-card p-3.5 shadow-sm relative group">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-card-foreground">{ann.title}</p>
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
+                            
+                            {ann.image_url && (
+                              <img
+                                src={ann.image_url}
+                                alt="Announcement attachment"
+                                className="mt-2.5 h-36 w-full rounded-xl object-cover"
+                              />
+                            )}
+
+                            {ann.link_url && (
+                              <a
+                                href={ann.link_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2.5 inline-flex items-center rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20"
+                              >
+                                {ann.link_text || "View"} →
+                              </a>
+                            )}
+                          </div>
+
+                          {!hideDeleteAnn && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAnnouncement(ann)}
+                              aria-label="Delete announcement"
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
                             >
-                              {ann.link_text || "View"} →
-                            </a>
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteAnnouncement(ann.id)}
-                          aria-label="Delete announcement"
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        <span className="mt-2 block text-[10px] text-muted-foreground">
+                          {new Date(ann.created_at).toLocaleString()}
+                        </span>
                       </div>
-                      <span className="mt-2 block text-[10px] text-muted-foreground">
-                        {new Date(ann.created_at).toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
