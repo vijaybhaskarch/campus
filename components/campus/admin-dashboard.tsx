@@ -5,7 +5,7 @@ import useSWR from "swr"
 import { Trash2, AlertTriangle, UserMinus, UserCheck, Megaphone } from "lucide-react"
 import { 
   fetchReviews, 
-  fetchFacultyComplaints, 
+  fetchFacultyComplaints,
   deleteReview, 
   fetchAllProfiles, 
   setBanned, 
@@ -18,19 +18,18 @@ export function AdminDashboard({ isAdmin, facultyId }: { isAdmin: boolean, facul
   const [tab, setTab] = useState("reviews")
   const [announcementText, setAnnouncementText] = useState("")
 
-  // 1. రివ్యూస్/కంప్లైంట్స్ డేటా
+  // 1. డేటా ఫెచింగ్ (అడ్మిన్ అయితే అన్ని రివ్యూలు, ఫ్యాకల్టీ అయితే కేవలం వారి కంప్లైంట్లు)
   const { data: reviews, isLoading: reviewsLoading, mutate: reloadReviews } = useSWR(
     isAdmin ? "admin-reviews" : `faculty-reviews-${facultyId}`,
     isAdmin ? fetchReviews : () => fetchFacultyComplaints(facultyId!)
   )
 
-  // 2. ప్రొఫైల్స్ మరియు అనౌన్స్‌మెంట్స్ డేటా
   const { data: profiles, mutate: reloadProfiles } = useSWR(isAdmin ? "admin-profiles" : null, fetchAllProfiles)
   const { data: announcements, mutate: reloadAnnouncements } = useSWR("announcements", fetchAnnouncements)
 
-  // రివ్యూ డిలీట్ చేసే ఫంక్షన్
+  // రివ్యూ డిలీట్ చేయడం
   const handleDeleteReview = async (id: string) => {
-    if (confirm("ఈ రివ్యూని డిలీట్ చేయాలనుకుంటున్నారా?")) {
+    if (confirm("ఈ మెసేజ్‌ని డిలీట్ చేయాలనుకుంటున్నారా?")) {
       try {
         await deleteReview(id)
         void reloadReviews()
@@ -85,7 +84,7 @@ export function AdminDashboard({ isAdmin, facultyId }: { isAdmin: boolean, facul
           onClick={() => setTab("reviews")} 
           className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${tab === "reviews" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
         >
-          {isAdmin ? "అన్ని రివ్యూలు / కంప్లైంట్లు" : "నా కంప్లైంట్లు"}
+          {isAdmin ? "రివ్యూలు / కంప్లైంట్లు" : "నా కంప్లైంట్లు"}
         </button>
         {isAdmin && (
           <>
@@ -113,7 +112,9 @@ export function AdminDashboard({ isAdmin, facultyId }: { isAdmin: boolean, facul
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           ) : !reviews || reviews.length === 0 ? (
-            <div className="text-center p-8 text-muted-foreground text-sm">ఏ రివ్యూలు లేదా కంప్లైంట్లు లేవు</div>
+            <div className="text-center p-8 text-muted-foreground text-sm">
+              {isAdmin ? "ఎటువంటి రివ్యూలు లేదా కంప్లైంట్లు లేవు." : "ఫ్యాకల్టీకి సంబంధించిన కంప్లైంట్లు ఏవీ లేవు."}
+            </div>
           ) : (
             reviews.map((r: any) => (
               <div key={r.id} className="rounded-2xl border border-border bg-card p-4 shadow-sm relative space-y-2">
@@ -145,7 +146,7 @@ export function AdminDashboard({ isAdmin, facultyId }: { isAdmin: boolean, facul
         </div>
       )}
 
-      {/* 2. యూజర్స్ ట్యాబ్ (కేవలం అడ్మిన్‌కి మాత్రమే) */}
+      {/* 2. యూజర్స్ ట్యాబ్ (అడ్మిన్‌కి మాత్రమే) */}
       {isAdmin && tab === "users" && (
         <div className="grid gap-3">
           {!profiles || profiles.length === 0 ? (
@@ -173,7 +174,7 @@ export function AdminDashboard({ isAdmin, facultyId }: { isAdmin: boolean, facul
         </div>
       )}
 
-      {/* 3. అనౌన్స్‌మెంట్స్ ట్యాబ్ (కేవలం అడ్మిన్‌కి మాత్రమే) */}
+      {/* 3. అనౌన్స్‌మెంట్స్ ట్యాబ్ (అడ్మిన్‌కి మాత్రమే) */}
       {isAdmin && tab === "announcements" && (
         <div className="space-y-4">
           <form onSubmit={handleCreateAnnouncement} className="space-y-3 bg-card border border-border p-4 rounded-2xl shadow-sm">
