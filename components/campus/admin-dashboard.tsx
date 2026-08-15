@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { ChevronLeft, Users, MessageSquareWarning, PackageSearch, Ban, ShieldCheck, Trash2, Loader2, Megaphone, Send, Image as ImageIcon, GraduationCap } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -22,8 +22,24 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [linkText, setLinkText] = useState("View")
   const [submitting, setSubmitting] = useState(false)
 
+  // లోకల్ గా డిలీట్ చేసిన (హైడ్ చేసిన) రివ్యూ ఐడీలను సేవ్ చేయడానికి
+  const [hiddenReviewIds, setHiddenReviewIds] = useState<string[]>([])
+
+  useEffect(() => {
+    if (user?.id) {
+      const saved = localStorage.getItem(`hidden_reviews_${user.id}`)
+      if (saved) {
+        try {
+          setHiddenReviewIds(JSON.parse(saved))
+        } catch (e) {
+          console.error(e)
+        }
+      }
+    }
+  }, [user?.id])
+
   const { data: profiles, mutate: reloadProfiles, isLoading: profilesLoading } = useSWR("admin-profiles", fetchAllProfiles)
-  const { data: reviews, mutate: reloadReviews, isLoading: reviewsLoading } = useSWR("admin-reviews", fetchReviews)
+  const { data: reviews, isLoading: reviewsLoading } = useSWR("admin-reviews", fetchReviews)
   const { data: announcements, mutate: reloadAnnouncements, isLoading: announcementsLoading } = useSWR("admin-announcements", fetchAnnouncements)
 
   function checkIsSuperAdmin(pEmail?: string | null) {
@@ -89,14 +105,26 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   }
 
+  // ఇక్కడ మార్పు: కేవలం వారి అకౌంట్ (స్క్రీన్) నుండి మాత్రమే హైడ్ అవుతుంది
   async function removeReview(reviewId: string) {
-    if (!confirm("Delete this review/complaint permanently?")) return
-    try {
-      await deleteReview(reviewId)
-      void reloadReviews()
-    } catch (err) {
-      console.error("Failed to delete review:", err)
-      alert("Failed to delete review.")
+    const isSuper = checkIsSuperAdmin(user?.email);
+
+    // మీరు (Super Admin) అయితే పర్మనెంట్ డిలీట్ కావాలా లేదా అని అడగొచ్చు, లేదా అందరికీ లోకల్ గానే హైడ్ కావాలంటే సింపుల్ గా ఇలా చేయొచ్చు:
+    if (isSuper && confirm("Super Admin: పర్మనెంట్ గా డేటాబేస్ నుండి డిలీట్ చేయాలా? (Cancel నొక్కితే మీ స్క్రీన్ నుండి మాత్రమే పోతుంది)")) {
+      try {
+        await deleteReview(reviewId)
+        window.location.reload()
+        return
+      } catch (err) {
+        console.error("Failed to delete permanently:", err)
+      }
+    }
+
+    // ఫ్యాకల్టీ లేదా అడ్మిన్ ఎవరైనా సరే కేవలం వారి అకౌంట్ నుండి మాత్రమే పోవడానికి:
+    const updated = [...hiddenReviewIds, reviewId]
+    setHiddenReviewIds(updated)
+    if (user?.id) {
+      localStorage.setItem(`hidden_reviews_${user.id}`, JSON.stringify(updated))
     }
   }
 
@@ -167,6 +195,19 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       alert("Failed to delete announcement.")
     }
   }
+
+  // ఫ్యాకల్టీ అయితే కేవలం "Complaint to Faculty" మాత్రమే కనిపించాలి. అడ్మిన్ అయితే అన్నీ కనిపించాలి.
+  const displayedReviews = (reviews ?? []).filter((r) => {
+    // లోకల్ గా హైడ్ చేసినవి చూపించకూడదు
+    if (hiddenReviewIds.includes(r.id)) return false;
+
+    // ఒకవేళ యూజర్ అడ్మిన్ కాకపోతే (అంటే ఫ్యాకల్టీ అయితే) కేవలం కంప్లైంట్స్ మాత్రమే ఫిల్టర్ చేయాలి
+    if (!isAdmin) {
+      return r.category === "Complaint to Faculty";
+    }
+
+    return true; // అడ్మిన్ కి అన్నీ కనిపిస్తాయి
+  });
 
   const tabs: { id: AdminTab; label: string; icon: typeof Users }[] = [
     { id: "users", label: "Users & Faculty", icon: Users },
@@ -305,7 +346,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
               const isFacultyOwner = ownerProfile?.role === "faculty";
 
               const ownerRole = isSuperAdminOwner ? "Super Admin" : (isFacultyOwner ? "Faculty" : "User");
-              
               const hideDeleteButton = !isAdmin && isSuperAdminOwner;
 
               return (
@@ -350,10 +390,10 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         {tab === "reviews" &&
           (reviewsLoading ? (
             <Spinner />
-          ) : (reviews ?? []).length === 0 ? (
-            <Empty label="No feedback submitted yet." />
+          ) : displayedReviews.length === 0 ? (
+            <Empty label={isAdmin ? "No feedback submitted yet." : "No faculty complaints found."} />
           ) : (
-            (reviews ?? []).map((r) => (
+            displayedReviews.map((r) => (
               <div key={r.id} className="flex items-start justify-between gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-sm">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -487,14 +527,16 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             )}
 
                             {ann.link_url && (
-                              <a
-                                href={ann.link_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="mt-2.5 inline-flex items-center rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20"
-                              >
-                                {ann.link_text || "View"} →
-                              </a>
+                              <p className="mt-2.5">
+                                <a
+                                  href={ann.link_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20"
+                                >
+                                  {ann.link_text || "View"} →
+                                </a>
+                              </p>
                             )}
                           </div>
 
