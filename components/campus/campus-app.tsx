@@ -25,6 +25,7 @@ export function CampusApp() {
 
   const userId = user!.id
   const username = profile?.username ?? "student"
+  const isFaculty = profile?.role === "faculty"
 
   // Always derive the selected item from the live list so its status stays fresh.
   const selected = useMemo(
@@ -32,10 +33,8 @@ export function CampusApp() {
     [selectedId, listings],
   )
 
-  // Notifications: an owner is alerted when someone requests their item.
-  const notificationCount = listings.filter(
-    (i) => i.owner_id === userId && i.status === "pending",
-  ).length
+  // బాటమ్ నేవిగేషన్‌లో ఎటువంటి నంబర్ (Badge count) కనిపించకుండా 0 కి సెట్ చేయబడింది
+  const notificationCount = 0
 
   function openItem(item: Item) {
     setSelectedId(item.id)
@@ -113,7 +112,14 @@ export function CampusApp() {
                 />
               )}
               {tab === "post" && <PostItem onSubmit={handleAdd} />}
-              {tab === "notifications" && <NotificationsScreen items={listings} currentUserId={userId} />}
+              {tab === "notifications" && (
+                <NotificationsScreen 
+                  items={listings} 
+                  currentUserId={userId} 
+                  isAdmin={isAdmin}
+                  isFaculty={isFaculty}
+                />
+              )}
               {tab === "profile" && <ProfileScreen />}
             </>
           )}
