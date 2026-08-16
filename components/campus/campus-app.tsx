@@ -114,11 +114,11 @@ export function CampusApp() {
               {tab === "post" && <PostItem onSubmit={handleAdd} />}
               {tab === "notifications" && (
                 <NotificationsScreen 
-                  items={listings} 
-                  currentUserId={userId} 
-                  isAdmin={isAdmin}
-                  isFaculty={isFaculty}
-                />
+                items={listings} 
+                currentUserId={userId} 
+                isAdmin={isAdmin}
+               isFaculty={profile?.role === "faculty"} 
+               />
               )}
               {tab === "profile" && <ProfileScreen />}
             </>
