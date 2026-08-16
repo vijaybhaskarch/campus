@@ -81,7 +81,7 @@ export function NotificationsScreen({
     <div className="flex flex-col">
       <header className="sticky top-0 z-20 bg-background/85 px-5 pb-3 pt-5 backdrop-blur-md">
         <h1 className="text-xl font-bold tracking-tight text-foreground">Notifications</h1>
-        <p className="text-xs text-muted-foreground">Requests on your items and updates on your requests[cite: 2].</p>
+        <p className="text-xs text-muted-foreground">Requests on your items and updates on your requests.[cite: 2]</p>
       </header>
 
       {!hasAnyNotifications ? (
@@ -89,7 +89,7 @@ export function NotificationsScreen({
           <Bell className="h-10 w-10 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">No notifications yet</p>
           <p className="max-w-[240px] text-xs text-muted-foreground">
-            When someone requests your item or an owner responds to your request, it&apos;ll show up here[cite: 2].
+            When someone requests your item or an owner responds to your request, it&apos;ll show up here.[cite: 2]
           </p>
         </div>
       ) : (
