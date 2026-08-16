@@ -186,25 +186,67 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       setSubmitType(null)
     }
   }
+async function handleDeleteAnnouncement(ann: any) {
+    const isCreator = ann.user_id === user?.id || ann.username === profile?.username || checkIsSuperAdmin(user?.email);
 
-  async function handleDeleteAnnouncement(ann: any) {
-    const creatorProfile = profiles?.find(p => p.id === ann.user_id || p.username.toLowerCase() === ann.username?.toLowerCase());
-    const isAdminAnnouncement = checkIsSuperAdmin(creatorProfile?.email) || ann.is_admin || ann.username === "admin";
+    if (isCreator) {
+      // క్రియేటర్ అయితే రెండు ఆప్షన్లు అడగడానికి
+      const confirmDeleteEveryone = window.confirm(
+        "Delete Options:\n\nClick 'OK' to Delete from Everyone (Permanent from database).\nClick 'Cancel' to Delete from Me only (Hide from your view)."
+      );
 
-    if (!isAdmin && isAdminAnnouncement) {
-      alert("You cannot delete announcements posted by the Super Admin.")
-      return
-    }
-
-    if (!confirm("Delete this item?")) return
-    try {
-      await deleteAnnouncement(ann.id)
+      if (confirmDeleteEveryone) {
+        // డేటాబేస్ నుంచి పూర్తిగా డిలీట్ చేయడం (Delete from Everyone)
+        try {
+          const supabase = getSupabase()
+          const { error } = await supabase.from("announcements").delete().eq("id", ann.id)
+          if (error) {
+            await deleteAnnouncement(ann.id)
+          }
+          void reloadAnnouncements()
+        } catch (err) {
+          console.error("Failed to delete announcement from database:", err)
+          alert("Failed to delete from everyone.")
+        }
+      } else {
+        // కేవలం ఈ యూజర్ స్క్రీన్ నుంచి మాత్రమే హైడ్ చేయడం (Delete from Me)
+        const hiddenKey = `hidden_announcements_${user?.id}`
+        const stored = localStorage.getItem(hiddenKey)
+        let hiddenArr: string[] = []
+        if (stored) {
+          try { hiddenArr = JSON.parse(stored) } catch(e) {}
+        }
+        if (!hiddenArr.includes(ann.id)) {
+          hiddenArr.push(ann.id)
+          localStorage.setItem(hiddenKey, JSON.stringify(hiddenArr))
+        }
+        void reloadAnnouncements()
+      }
+    } else {
+      // క్రియేటర్ కాని వాళ్లు నొక్కితే కేవలం వారి స్క్రీన్ నుంచి మాత్రమే పోవాలి (Delete from Me)
+      const hiddenKey = `hidden_announcements_${user?.id}`
+      const stored = localStorage.getItem(hiddenKey)
+      let hiddenArr: string[] = []
+      if (stored) {
+        try { hiddenArr = JSON.parse(stored) } catch(e) {}
+      }
+      if (!hiddenArr.includes(ann.id)) {
+        hiddenArr.push(ann.id)
+        localStorage.setItem(hiddenKey, JSON.stringify(hiddenArr))
+      }
       void reloadAnnouncements()
-    } catch (err) {
-      console.error(err)
-      alert("Failed to delete item.")
     }
-  }
+  } 
+  const [hiddenAnnIds, setHiddenAnnIds] = useState<string[]>([])
+
+  useEffect(() => {
+    if (user?.id) {
+      const savedAnn = localStorage.getItem(`hidden_announcements_${user.id}`)
+      if (savedAnn) {
+        try { setHiddenAnnIds(JSON.parse(savedAnn)) } catch(e) {}
+      }
+    }
+  }, [user?.id])
 
   const displayedReviews = (reviews ?? []).filter((r) => {
     if (hiddenReviewIds.includes(r.id)) return false;
@@ -214,9 +256,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     return true;
   });
 
-  const normalAnnouncements = (announcements ?? []).filter((ann: any) => ann.target_audience !== "faculty_admin");
-  const broadcastAnnouncements = (announcements ?? []).filter((ann: any) => ann.target_audience === "faculty_admin");
-
+  const normalAnnouncements = (announcements ?? []).filter((ann: any) => ann.target_audience !== "faculty_admin" && !hiddenAnnIds.includes(ann.id));
+  const broadcastAnnouncements = (announcements ?? []).filter((ann: any) => ann.target_audience === "faculty_admin" && !hiddenAnnIds.includes(ann.id));
   const tabs: { id: AdminTab; label: string; icon: typeof Users }[] = [
     { id: "users", label: "Users", icon: Users },
     { id: "listings", label: "Listings", icon: PackageSearch },
