@@ -187,69 +187,51 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   }
 async function handleDeleteAnnouncement(ann: any) {
-    const isCreator = ann.user_id === user?.id || ann.username === profile?.username || checkIsSuperAdmin(user?.email);
+  const isCreator = ann.user_id === user?.id || ann.username === profile?.username || checkIsSuperAdmin(user?.email);
 
-    if (isCreator) {
-      // 3 ఆప్షన్ల కోసం prompt లేదా వరుసగా కన్ఫర్మేషన్స్ వాడవచ్చు. 
-      // ఇక్కడ నంబర్స్ ఇస్తే పొరపాటు జరగకుండా ఉంటుంది: 
-      // 1 -> Delete from Everyone, 2 -> Delete from Me, Cancel -> వెనక్కి వెళ్ళిపోతుంది.
-      const actionChoice = window.prompt(
-        "Choose Delete Option:\n\nType '1' -> Delete from Everyone (Permanent)\nType '2' -> Delete from Me only (Hide)\n\n(Click Cancel or leave empty to go back safely)"
-      );
+  if (isCreator) {
+    // 3 ఆప్షన్ల కోసం కస్టమ్ కన్ఫర్మేషన్ మెసేజ్
+    const choice = window.prompt(
+      "Choose an option:\n'1' - Delete from Everyone (Permanent)\n'2' - Delete from Me only (Hide)\n'3' or Cancel - Go Back"
+    );
 
-      // యూజర్ క్యాన్సిల్ నొక్కితే లేదా ఏమీ ఎంటర్ చేయకపోతే ఏది జరగదు (Safe Back)
-      if (actionChoice === null || actionChoice.trim() === "") {
-        return; 
+    if (choice === "1") {
+      // 1. Delete from Everyone
+      try {
+        const supabase = getSupabase();
+        const { error } = await supabase.from("announcements").delete().eq("id", ann.id);
+        if (error) await deleteAnnouncement(ann.id);
+        void reloadAnnouncements();
+      } catch (err) {
+        console.error("Error deleting from everyone:", err);
+        alert("Failed to delete.");
       }
-
-      if (actionChoice === "1") {
-        // డేటాబేస్ నుంచి పూర్తిగా డిలీట్ చేయడం (Delete from Everyone)
-        try {
-          const supabase = getSupabase()
-          const { error } = await supabase.from("announcements").delete().eq("id", ann.id)
-          if (error) {
-            await deleteAnnouncement(ann.id)
-          }
-          void reloadAnnouncements()
-        } catch (err) {
-          console.error("Failed to delete announcement from database:", err)
-          alert("Failed to delete from everyone.")
-        }
-      } else if (actionChoice === "2") {
-        // కేవలం ఈ యూజర్ స్క్రీన్ నుంచి మాత్రమే హైడ్ చేయడం (Delete from Me)
-        const hiddenKey = `hidden_announcements_${user?.id}`
-        const stored = localStorage.getItem(hiddenKey)
-        let hiddenArr: string[] = []
-        if (stored) {
-          try { hiddenArr = JSON.parse(stored) } catch(e) {}
-        }
-        if (!hiddenArr.includes(ann.id)) {
-          hiddenArr.push(ann.id)
-          localStorage.setItem(hiddenKey, JSON.stringify(hiddenArr))
-        }
-        void reloadAnnouncements()
-      } else {
-        // వేరే ఏదైనా టైప్ చేస్తే ఏమీ జరగకుండా ఆగిపోతుంది
-        return;
-      }
-    } else {
-      // క్రియేటర్ కాని వాళ్లు నొక్కితే కేవలం వారి స్క్రీన్ నుంచి పోవడానికి కన్ఫర్మేషన్
-      const confirmMe = window.confirm("Do you want to hide this announcement from your view? (Click OK to confirm, Cancel to go back)");
-      if (!confirmMe) return;
-
-      const hiddenKey = `hidden_announcements_${user?.id}`
-      const stored = localStorage.getItem(hiddenKey)
-      let hiddenArr: string[] = []
-      if (stored) {
-        try { hiddenArr = JSON.parse(stored) } catch(e) {}
-      }
+    } else if (choice === "2") {
+      // 2. Delete from Me (Hide)
+      const hiddenKey = `hidden_announcements_${user?.id}`;
+      const stored = localStorage.getItem(hiddenKey);
+      let hiddenArr: string[] = stored ? JSON.parse(stored) : [];
       if (!hiddenArr.includes(ann.id)) {
-        hiddenArr.push(ann.id)
-        localStorage.setItem(hiddenKey, JSON.stringify(hiddenArr))
+        hiddenArr.push(ann.id);
+        localStorage.setItem(hiddenKey, JSON.stringify(hiddenArr));
       }
-      void reloadAnnouncements()
+      void reloadAnnouncements();
+    } else {
+      // 3. Cancel (Safe Back)
+      return;
     }
+  } else {
+    // ఇతర యూజర్స్ కోసం: ఏ కన్ఫ్యూషన్ లేకుండా నేరుగా వారి స్క్రీన్ నుంచి మాత్రమే హైడ్ అవుతుంది
+    const hiddenKey = `hidden_announcements_${user?.id}`;
+    const stored = localStorage.getItem(hiddenKey);
+    let hiddenArr: string[] = stored ? JSON.parse(stored) : [];
+    if (!hiddenArr.includes(ann.id)) {
+      hiddenArr.push(ann.id);
+      localStorage.setItem(hiddenKey, JSON.stringify(hiddenArr));
+    }
+    void reloadAnnouncements();
   }
+}
   const [hiddenAnnIds, setHiddenAnnIds] = useState<string[]>([])
 
   useEffect(() => {
