@@ -19,7 +19,6 @@ export function NotificationsScreen({
   isAdmin?: boolean
   userRole?: string 
 }) {
-  // ఇక్కడ fetchAnnouncements బదులుగా డైరెక్ట్ Supabase క్వెరీ వాడుతున్నాం, దీనివల్ల బ్రాడ్‌కాస్ట్ మెసేజ్‌లు వెంటనే వస్తాయి
   const { data: announcements } = useSWR("admin-announcements", async () => {
     const supabase = getSupabase()
     const { data, error } = await supabase.from("announcements").select("*").order("created_at", { ascending: false })
@@ -47,6 +46,35 @@ export function NotificationsScreen({
       localStorage.setItem(`hidden_announcements_${currentUserId}`, JSON.stringify(updated))
     } catch (e) {
       console.error(e)
+    }
+  }
+
+  // బ్రాడ్‌కాస్ట్ డిలీట్ చేయడానికి సరికొత్త లాజిక్
+  async function handleDeleteAnnouncement(ann: any) {
+    // పోస్ట్ క్రియేట్ చేసిన వ్యక్తి లేదా అడ్మిన్ కాదా అని చెక్ చేయడం
+    const isCreator = ann.user_id === currentUserId || ann.username === currentUserId || isAdmin;
+
+    if (isCreator) {
+      // క్రియేటర్ అయితే రెండు ఆప్షన్లు అడగడం
+      const confirmDeleteEveryone = window.confirm(
+        "Delete Options:\n\nClick 'OK' to Delete from Everyone (Permanent for all).\nClick 'Cancel' to Delete from Me only (Hide from your screen)."
+      );
+
+      if (confirmDeleteEveryone) {
+        // డేటాబేస్ నుంచి పూర్తిగా డిలీట్ చేయడం (Delete from Everyone)
+        const supabase = getSupabase();
+        const { error } = await supabase.from("announcements").delete().eq("id", ann.id);
+        if (error) {
+          console.error("Error deleting announcement from database:", error);
+          alert("Failed to delete from everyone.");
+        }
+      } else {
+        // కేవలం ఈ యూజర్ స్క్రీన్ నుంచి మాత్రమే హైడ్ చేయడం (Delete from Me)
+        handleDismissAnnouncement(ann.id);
+      }
+    } else {
+      // క్రియేటర్ కాని వాళ్లు నొక్కితే కేవలం వారి స్క్రీన్ నుంచి మాత్రమే పోవాలి (Delete from Me)
+      handleDismissAnnouncement(ann.id);
     }
   }
 
@@ -163,7 +191,7 @@ export function NotificationsScreen({
                 </div>
                 <button
                   type="button"
-                  onClick={() => handleDismissAnnouncement(ann.id)}
+                  onClick={() => handleDeleteAnnouncement(ann)}
                   aria-label="Delete notification"
                   className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground"
                 >
