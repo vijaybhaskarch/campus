@@ -23,6 +23,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   
   const [submitType, setSubmitType] = useState<"all" | "faculty_admin" | null>(null)
   const [hiddenReviewIds, setHiddenReviewIds] = useState<string[]>([])
+  const [deleteModalAnn, setDeleteModalAnn] = useState<any | null>(null)
 
   useEffect(() => {
     if (user?.id) {
@@ -186,52 +187,48 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       setSubmitType(null)
     }
   }
-async function handleDeleteAnnouncement(ann: any) {
-  const isCreator = ann.user_id === user?.id || ann.username === profile?.username || checkIsSuperAdmin(user?.email);
 
-  if (isCreator) {
-    // 3 ఆప్షన్ల కోసం కస్టమ్ కన్ఫర్మేషన్ మెసేజ్
-    const choice = window.prompt(
-      "Choose an option:\n'1' - Delete from Everyone (Permanent)\n'2' - Delete from Me only (Hide)\n'3' or Cancel - Go Back"
-    );
+  async function handleDeleteChoice(choice: 'everyone' | 'me' | 'cancel', ann: any) {
+    setDeleteModalAnn(null);
+    if (choice === 'cancel' || !ann) return;
 
-    if (choice === "1") {
-      // 1. Delete from Everyone
+    if (choice === 'everyone') {
       try {
         const supabase = getSupabase();
         const { error } = await supabase.from("announcements").delete().eq("id", ann.id);
-        if (error) await deleteAnnouncement(ann.id);
+        if (error) {
+          await deleteAnnouncement(ann.id);
+        }
         void reloadAnnouncements();
       } catch (err) {
-        console.error("Error deleting from everyone:", err);
-        alert("Failed to delete.");
+        console.error("Failed to delete from everyone:", err);
+        alert("Failed to delete from everyone.");
       }
-    } else if (choice === "2") {
-      // 2. Delete from Me (Hide)
+    } else if (choice === 'me') {
       const hiddenKey = `hidden_announcements_${user?.id}`;
       const stored = localStorage.getItem(hiddenKey);
-      let hiddenArr: string[] = stored ? JSON.parse(stored) : [];
+      let hiddenArr: string[] = [];
+      if (stored) {
+        try { hiddenArr = JSON.parse(stored); } catch (e) {}
+      }
       if (!hiddenArr.includes(ann.id)) {
         hiddenArr.push(ann.id);
         localStorage.setItem(hiddenKey, JSON.stringify(hiddenArr));
       }
       void reloadAnnouncements();
-    } else {
-      // 3. Cancel (Safe Back)
-      return;
     }
-  } else {
-    // ఇతర యూజర్స్ కోసం: ఏ కన్ఫ్యూషన్ లేకుండా నేరుగా వారి స్క్రీన్ నుంచి మాత్రమే హైడ్ అవుతుంది
-    const hiddenKey = `hidden_announcements_${user?.id}`;
-    const stored = localStorage.getItem(hiddenKey);
-    let hiddenArr: string[] = stored ? JSON.parse(stored) : [];
-    if (!hiddenArr.includes(ann.id)) {
-      hiddenArr.push(ann.id);
-      localStorage.setItem(hiddenKey, JSON.stringify(hiddenArr));
-    }
-    void reloadAnnouncements();
   }
-}
+
+  function handleTrashClick(ann: any) {
+    const isCreator = ann.user_id === user?.id || ann.username === profile?.username || checkIsSuperAdmin(user?.email);
+    
+    if (isCreator) {
+      setDeleteModalAnn(ann);
+    } else {
+      handleDeleteChoice('me', ann);
+    }
+  }
+
   const [hiddenAnnIds, setHiddenAnnIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -253,6 +250,7 @@ async function handleDeleteAnnouncement(ann: any) {
 
   const normalAnnouncements = (announcements ?? []).filter((ann: any) => ann.target_audience !== "faculty_admin" && !hiddenAnnIds.includes(ann.id));
   const broadcastAnnouncements = (announcements ?? []).filter((ann: any) => ann.target_audience === "faculty_admin" && !hiddenAnnIds.includes(ann.id));
+  
   const tabs: { id: AdminTab; label: string; icon: typeof Users }[] = [
     { id: "users", label: "Users", icon: Users },
     { id: "listings", label: "Listings", icon: PackageSearch },
@@ -565,8 +563,6 @@ async function handleDeleteAnnouncement(ann: any) {
                 <div className="flex flex-col gap-2.5">
                   {normalAnnouncements.map((ann: any) => {
                     const creatorProfile = profiles?.find(p => p.id === ann.user_id || p.username.toLowerCase() === ann.username?.toLowerCase());
-                    const isAdminAnnouncement = checkIsSuperAdmin(creatorProfile?.email) || ann.is_admin || ann.username === "admin";
-                    const hideDeleteAnn = !isAdmin && isAdminAnnouncement;
 
                     return (
                       <div key={ann.id} className="rounded-2xl border border-border bg-card p-3.5 shadow-sm relative group">
@@ -604,16 +600,14 @@ async function handleDeleteAnnouncement(ann: any) {
                             </div>
                           </div>
 
-                          {!hideDeleteAnn && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteAnnouncement(ann)}
-                              aria-label="Delete announcement"
-                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleTrashClick(ann)}
+                            aria-label="Delete announcement"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                         <span className="mt-2 block text-[10px] text-muted-foreground">
                           {new Date(ann.created_at).toLocaleString()}
@@ -639,8 +633,6 @@ async function handleDeleteAnnouncement(ann: any) {
                 <div className="flex flex-col gap-2.5">
                   {broadcastAnnouncements.map((ann: any) => {
                     const creatorProfile = profiles?.find(p => p.id === ann.user_id || p.username.toLowerCase() === ann.username?.toLowerCase());
-                    const isAdminAnnouncement = checkIsSuperAdmin(creatorProfile?.email) || ann.is_admin || ann.username === "admin";
-                    const hideDeleteAnn = !isAdmin && isAdminAnnouncement;
 
                     return (
                       <div key={ann.id} className="rounded-2xl border border-border bg-card p-3.5 shadow-sm relative group">
@@ -678,16 +670,14 @@ async function handleDeleteAnnouncement(ann: any) {
                             </div>
                           </div>
 
-                          {!hideDeleteAnn && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteAnnouncement(ann)}
-                              aria-label="Delete broadcast"
-                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleTrashClick(ann)}
+                            aria-label="Delete broadcast"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
                         <span className="mt-2 block text-[10px] text-muted-foreground">
                           {new Date(ann.created_at).toLocaleString()}
@@ -701,6 +691,41 @@ async function handleDeleteAnnouncement(ann: any) {
           </div>
         )}
       </div>
+
+      {deleteModalAnn && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
+          backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999
+        }}>
+          <div style={{ background: '#1e1e1e', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '400px', textAlign: 'center', border: '1px solid #333' }}>
+            <h3 style={{ color: '#fff', marginBottom: '12px', fontSize: '18px' }}>Delete Options</h3>
+            <p style={{ color: '#aaa', marginBottom: '20px', fontSize: '14px' }}>Choose how you want to delete this item:</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button 
+                onClick={() => handleDeleteChoice('everyone', deleteModalAnn)}
+                style={{ padding: '12px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                Delete from Everyone
+              </button>
+              
+              <button 
+                onClick={() => handleDeleteChoice('me', deleteModalAnn)}
+                style={{ padding: '12px', background: '#374151', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                Delete from Me
+              </button>
+              
+              <button 
+                onClick={() => handleDeleteChoice('cancel', deleteModalAnn)}
+                style={{ padding: '12px', background: 'transparent', color: '#9ca3af', border: '1px solid #4b5563', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
