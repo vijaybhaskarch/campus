@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react"
 import useSWR from "swr"
-import { ChevronLeft, Users, MessageSquareWarning, PackageSearch, Ban, ShieldCheck, Trash2, Loader2, Megaphone, Send, Image as ImageIcon, GraduationCap } from "lucide-react"
+import { ChevronLeft, Users, MessageSquareWarning, PackageSearch, Ban, ShieldCheck, Trash2, Loader2, Megaphone, Send, Image as ImageIcon, GraduationCap, Radio } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { deleteListing, fetchAllProfiles, fetchReviews, deleteReview, setBanned, fetchAnnouncements, createAnnouncement, deleteAnnouncement } from "@/lib/api"
 import { formatPrice, type Item } from "@/lib/campus-data"
 import { useSession } from "./session-provider"
 import { getSupabase } from "@/lib/supabase/client"
 
-type AdminTab = "users" | "listings" | "reviews" | "announcement"
+type AdminTab = "users" | "listings" | "reviews" | "announcement" | "broadcast"
 
 export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const { user, profile, isAdmin, listings, reloadListings } = useSession()
@@ -20,9 +20,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [linkUrl, setLinkUrl] = useState("")
   const [linkText, setLinkText] = useState("View")
+  const [targetAudience, setTargetAudience] = useState<"all" | "faculty_admin">("all")
   const [submitting, setSubmitting] = useState(false)
 
-  // లోకల్ గా డిలీట్ చేసిన (హైడ్ చేసిన) రివ్యూ ఐడీలను సేవ్ చేయడానికి
   const [hiddenReviewIds, setHiddenReviewIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -105,11 +105,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   }
 
-  // ఇక్కడ మార్పు: కేవలం వారి అకౌంట్ (స్క్రీన్) నుండి మాత్రమే హైడ్ అవుతుంది
   async function removeReview(reviewId: string) {
     const isSuper = checkIsSuperAdmin(user?.email);
 
-    // మీరు (Super Admin) అయితే పర్మనెంట్ డిలీట్ కావాలా లేదా అని అడగొచ్చు, లేదా అందరికీ లోకల్ గానే హైడ్ కావాలంటే సింపుల్ గా ఇలా చేయొచ్చు:
     if (isSuper && confirm("Super Admin: పర్మనెంట్ గా డేటాబేస్ నుండి డిలీట్ చేయాలా? (Cancel నొక్కితే మీ స్క్రీన్ నుండి మాత్రమే పోతుంది)")) {
       try {
         await deleteReview(reviewId)
@@ -120,7 +118,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       }
     }
 
-    // ఫ్యాకల్టీ లేదా అడ్మిన్ ఎవరైనా సరే కేవలం వారి అకౌంట్ నుండి మాత్రమే పోవడానికి:
     const updated = [...hiddenReviewIds, reviewId]
     setHiddenReviewIds(updated)
     if (user?.id) {
@@ -154,8 +151,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         imageUrl = publicUrlData.publicUrl
       }
 
+      const finalTitle = targetAudience === "faculty_admin" 
+        ? `[Faculty & Admin] ${title.trim() || "Broadcast"}`
+        : (title.trim() || "Platform Announcement");
+
       await createAnnouncement({
-        title: title.trim() || "Platform Announcement",
+        title: finalTitle,
         message: message.trim(),
         image_url: imageUrl,
         link_url: linkUrl.trim() || null,
@@ -167,8 +168,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       setImageFile(null)
       setLinkUrl("")
       setLinkText("View")
+      setTargetAudience("all")
       void reloadAnnouncements()
-      alert("Announcement sent successfully to all users!")
+      alert(targetAudience === "faculty_admin" ? "Broadcast sent successfully to Admin & Faculty!" : "Announcement sent successfully to all users!")
     } catch (err) {
       console.error(err)
       alert("Failed to send announcement.")
@@ -196,17 +198,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   }
 
-  // ఫ్యాకల్టీ అయితే కేవలం "Complaint to Faculty" మాత్రమే కనిపించాలి. అడ్మిన్ అయితే అన్నీ కనిపించాలి.
   const displayedReviews = (reviews ?? []).filter((r) => {
-    // లోకల్ గా హైడ్ చేసినవి చూపించకూడదు
     if (hiddenReviewIds.includes(r.id)) return false;
-
-    // ఒకవేళ యూజర్ అడ్మిన్ కాకపోతే (అంటే ఫ్యాకల్టీ అయితే) కేవలం కంప్లైంట్స్ మాత్రమే ఫిల్టర్ చేయాలి
     if (!isAdmin) {
       return r.category === "Complaint to Faculty";
     }
-
-    return true; // అడ్మిన్ కి అన్నీ కనిపిస్తాయి
+    return true;
   });
 
   const tabs: { id: AdminTab; label: string; icon: typeof Users }[] = [
@@ -214,6 +211,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     { id: "listings", label: "Listings", icon: PackageSearch },
     { id: "reviews", label: "Reviews", icon: MessageSquareWarning },
     { id: "announcement", label: "Announcement", icon: Megaphone },
+    { id: "broadcast", label: "Broadcast", icon: Radio },
   ]
 
   return (
@@ -430,7 +428,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
               <form onSubmit={handleSendAnnouncement} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
                 <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
                   <Megaphone className="h-4 w-4 text-primary" />
-                  Broadcast to All Users
+                  Broadcast Announcement
                 </h2>
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground">Title</label>
@@ -447,12 +445,39 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   <textarea
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Type your message for all users here..."
+                    placeholder="Type your message here..."
                     rows={3}
                     required
                     className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
+
+                <div className="flex flex-col gap-1.5 pt-1">
+                  <label className="text-xs font-semibold text-muted-foreground">Target Audience</label>
+                  <div className="flex flex-col gap-2">
+                    <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+                      <input
+                        type="radio"
+                        name="targetAudience"
+                        checked={targetAudience === "all"}
+                        onChange={() => setTargetAudience("all")}
+                        className="text-primary focus:ring-primary"
+                      />
+                      Send to All Users
+                    </label>
+                    <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+                      <input
+                        type="radio"
+                        name="targetAudience"
+                        checked={targetAudience === "faculty_admin"}
+                        onChange={() => setTargetAudience("faculty_admin")}
+                        className="text-primary focus:ring-primary"
+                      />
+                      Send Only to Admin & Faculty
+                    </label>
+                  </div>
+                </div>
+
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
                     <ImageIcon className="h-3.5 w-3.5" /> Attach Image (Optional)
@@ -493,73 +518,77 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   className="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-50"
                 >
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Send to All Users
+                  {targetAudience === "faculty_admin" ? "Send Only to Admin & Faculty" : "Send to All Users"}
                 </button>
               </form>
             )}
+          </div>
+        )}
 
-            <div className="mt-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1 mb-2">Previous Broadcasts</h3>
-              {announcementsLoading ? (
-                <Spinner />
-              ) : (announcements ?? []).length === 0 ? (
-                <Empty label="No announcements sent yet." />
-              ) : (
-                <div className="flex flex-col gap-2.5">
-                  {(announcements ?? []).map((ann) => {
-                    const creatorProfile = profiles?.find(p => p.id === ann.user_id || p.username.toLowerCase() === ann.username?.toLowerCase());
-                    const isAdminAnnouncement = checkIsSuperAdmin(creatorProfile?.email) || ann.is_admin || ann.username === "admin";
-                    const hideDeleteAnn = !isAdmin && isAdminAnnouncement;
+        {tab === "broadcast" && (
+          <div className="flex flex-col gap-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1 mb-1">Previous Broadcasts</h3>
+            {announcementsLoading ? (
+              <Spinner />
+            ) : (announcements ?? []).length === 0 ? (
+              <Empty label="No broadcasts sent yet." />
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {(announcements ?? []).map((ann) => {
+                  const creatorProfile = profiles?.find(p => p.id === ann.user_id || p.username.toLowerCase() === ann.username?.toLowerCase());
+                  const isAdminAnnouncement = checkIsSuperAdmin(creatorProfile?.email) || ann.is_admin || ann.username === "admin";
+                  const hideDeleteAnn = !isAdmin && isAdminAnnouncement;
 
-                    return (
-                      <div key={ann.id} className="rounded-2xl border border-border bg-card p-3.5 shadow-sm relative group">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-card-foreground">{ann.title}</p>
-                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
-                            
-                            {ann.image_url && (
+                  return (
+                    <div key={ann.id} className="rounded-2xl border border-border bg-card p-3.5 shadow-sm relative group">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-card-foreground">{ann.title}</p>
+                          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
+                          
+                          {ann.image_url && (
+                            <div className="mt-2.5 w-full overflow-hidden rounded-xl bg-muted/20 flex justify-center">
                               <img
                                 src={ann.image_url}
                                 alt="Announcement attachment"
-                                className="mt-2.5 h-36 w-full rounded-xl object-cover"
+                                className="w-auto max-h-[350px] object-contain rounded-lg"
                               />
-                            )}
+                            </div>
+                          )}
 
-                            {ann.link_url && (
-                              <p className="mt-2.5">
-                                <a
-                                  href={ann.link_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20"
-                                >
-                                  {ann.link_text || "View"} →
-                                </a>
-                              </p>
-                            )}
-                          </div>
-
-                          {!hideDeleteAnn && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteAnnouncement(ann)}
-                              aria-label="Delete announcement"
-                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                          {ann.link_url && (
+                            <p className="mt-2.5">
+                              <a
+                                href={ann.link_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20"
+                              >
+                                {ann.link_text || "View"} →
+                              </a>
+                            </p>
                           )}
                         </div>
-                        <span className="mt-2 block text-[10px] text-muted-foreground">
-                          {new Date(ann.created_at).toLocaleString()}
-                        </span>
+
+                        {!hideDeleteAnn && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAnnouncement(ann)}
+                            aria-label="Delete broadcast"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+                      <span className="mt-2 block text-[10px] text-muted-foreground">
+                        {new Date(ann.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
