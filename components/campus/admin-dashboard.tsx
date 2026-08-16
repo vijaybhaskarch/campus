@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { ChevronLeft, Users, MessageSquareWarning, PackageSearch, Ban, ShieldCheck, Trash2, Loader2, Megaphone, Send, Image as ImageIcon, GraduationCap, Radio } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { deleteListing, fetchAllProfiles, fetchReviews, deleteReview, setBanned, fetchAnnouncements, createAnnouncement, deleteAnnouncement } from "@/lib/api"
+import { deleteListing, fetchAllProfiles, fetchReviews, deleteReview, setBanned, deleteAnnouncement } from "@/lib/api"
 import { formatPrice, type Item } from "@/lib/campus-data"
 import { useSession } from "./session-provider"
 import { getSupabase } from "@/lib/supabase/client"
@@ -21,9 +21,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [linkUrl, setLinkUrl] = useState("")
   const [linkText, setLinkText] = useState("View")
   
-  // రెండు బటన్స్ విడివిడిగా లోడ్ అవ్వడానికి ఈ స్టేట్ వాడబడింది
   const [submitType, setSubmitType] = useState<"all" | "faculty_admin" | null>(null)
-
   const [hiddenReviewIds, setHiddenReviewIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -42,11 +40,11 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const { data: profiles, mutate: reloadProfiles, isLoading: profilesLoading } = useSWR("admin-profiles", fetchAllProfiles)
   const { data: reviews, isLoading: reviewsLoading } = useSWR("admin-reviews", fetchReviews)
   const { data: announcements, mutate: reloadAnnouncements, isLoading: announcementsLoading } = useSWR("admin-announcements", async () => {
-  const supabase = getSupabase()
-  const { data, error } = await supabase.from("announcements").select("*").order("created_at", { ascending: false })
-  if (error) throw error
-  return data
-}, { refreshInterval: 1000 })
+    const supabase = getSupabase()
+    const { data, error } = await supabase.from("announcements").select("*").order("created_at", { ascending: false })
+    if (error) throw error
+    return data
+  }, { refreshInterval: 1000 })
 
   function checkIsSuperAdmin(pEmail?: string | null) {
     if (!pEmail) return false;
@@ -180,7 +178,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       setLinkUrl("")
       setLinkText("View")
       void reloadAnnouncements()
-      alert(audienceType === "faculty_admin" ? "Broadcast sent successfully!" : "Announcement sent successfully to all users!")
+      alert(audienceType === "faculty_admin" ? "Broadcast sent successfully to Faculty & Admin!" : "Announcement sent successfully to All Users!")
     } catch (err: any) {
       console.error("Detailed error:", err)
       alert(`Failed to send notification: ${err?.message || "Unknown error"}`)
@@ -210,11 +208,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const displayedReviews = (reviews ?? []).filter((r) => {
     if (hiddenReviewIds.includes(r.id)) return false;
-
     if (!isAdmin) {
       return r.category === "Complaint to Faculty";
     }
-
     return true;
   });
 
@@ -501,7 +497,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
               </div>
 
               <div className="flex flex-col gap-2 mt-2">
-                {/* 1. Send to All Users బటన్ (White Color) */}
                 <button
                   type="button"
                   disabled={submitType !== null}
@@ -512,7 +507,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                   Send to All Users (Alerts)
                 </button>
 
-                {/* 2. Send Only to Faculty and Admin బటన్ (Gold / Yellow Color) */}
                 <button
                   type="button"
                   disabled={submitType !== null}
@@ -546,11 +540,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
                             
                             {ann.image_url && (
-                              <img
-                                src={ann.image_url}
-                                alt="Announcement attachment"
-                                className="mt-2.5 w-full h-auto rounded-xl object-contain"
-                              />
+                              <div className="mt-2.5 w-full overflow-hidden rounded-xl bg-muted/20 flex justify-center">
+                                <img
+                                  src={ann.image_url}
+                                  alt="Announcement attachment"
+                                  className="w-full h-auto object-contain rounded-lg max-h-[400px]"
+                                />
+                              </div>
                             )}
 
                             {ann.link_url && (
@@ -567,7 +563,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             )}
 
                             <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
-                              <span>By: @{creatorProfile?.username || ann.username || "Admin"}</span>
+                              <span>By: @{creatorProfile?.username || ann.username || "Admin"} ({creatorProfile?.role || "admin"})</span>
                               <span>{creatorProfile?.email || "admin@campus.edu"}</span>
                             </div>
                           </div>
@@ -618,11 +614,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
                             
                             {ann.image_url && (
-                              <img
-                                src={ann.image_url}
-                                alt="Broadcast attachment"
-                                className="mt-2.5 w-full h-auto rounded-xl object-contain"
-                              />
+                              <div className="mt-2.5 w-full overflow-hidden rounded-xl bg-muted/20 flex justify-center">
+                                <img
+                                  src={ann.image_url}
+                                  alt="Broadcast attachment"
+                                  className="w-full h-auto object-contain rounded-lg max-h-[400px]"
+                                />
+                              </div>
                             )}
 
                             {ann.link_url && (
@@ -639,7 +637,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             )}
 
                             <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
-                              <span>By: @{creatorProfile?.username || ann.username || "Admin"}</span>
+                              <span>By: @{creatorProfile?.username || ann.username || "Admin"} ({creatorProfile?.role || "admin"})</span>
                               <span>{creatorProfile?.email || "admin@campus.edu"}</span>
                             </div>
                           </div>
