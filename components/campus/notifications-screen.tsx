@@ -96,7 +96,6 @@ export function NotificationsScreen({
         <div className="flex flex-col gap-2.5 px-5 pb-32 pt-2">
           {/* Broadcast Announcements for Faculty and Admin */}
           {visibleAnnouncements.map((ann) => {
-            // Check role of the person who sent the announcement (defaults to admin if created from admin dashboard)
             const senderRole = ann.sender_role || "admin"
             const senderName = ann.sender_username || "Admin"
 
