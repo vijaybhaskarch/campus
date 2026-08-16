@@ -20,8 +20,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [linkUrl, setLinkUrl] = useState("")
   const [linkText, setLinkText] = useState("View")
-  const [submitting, setSubmitting] = useState(false)
-  const [targetAudience, setTargetAudience] = useState<"all" | "faculty_admin">("all")
+  
+  // రెండు బటన్స్ విడివిడిగా లోడ్ అవ్వడానికి ఈ స్టేట్ వాడబడింది
+  const [submitType, setSubmitType] = useState<"all" | "faculty_admin" | null>(null)
 
   const [hiddenReviewIds, setHiddenReviewIds] = useState<string[]>([])
 
@@ -124,10 +125,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       localStorage.setItem(`hidden_reviews_${user.id}`, JSON.stringify(updated))
     }
   }
-async function handleSendAnnouncement(e: React.FormEvent, audienceType: "all" | "faculty_admin") {
+
+  async function handleSendAnnouncement(e: React.FormEvent, audienceType: "all" | "faculty_admin") {
     e.preventDefault()
-    if (!message.trim()) return
-    setSubmitting(true)
+    if (!message.trim() || submitType !== null) return
+    setSubmitType(audienceType)
+    
     try {
       const supabase = getSupabase()
       let imageUrl: string | null = null
@@ -153,7 +156,6 @@ async function handleSendAnnouncement(e: React.FormEvent, audienceType: "all" | 
       const senderName = profile?.username || user?.email?.split("@")[0] || "Admin"
       const finalTitle = title.trim() || (audienceType === "faculty_admin" ? "Broadcast Message" : "Platform Announcement")
 
-      // కేవలం ఏ బటన్ నొక్కితే ఆ ఒక్క ఎంట్రీ మాత్రమే డేటాబేస్‌లో సేవ్ అవుతుంది
       const { error: insertError } = await supabase.from("announcements").insert({
         title: finalTitle,
         message: message.trim(),
@@ -178,9 +180,10 @@ async function handleSendAnnouncement(e: React.FormEvent, audienceType: "all" | 
       console.error("Detailed error:", err)
       alert(`Failed to send notification: ${err?.message || "Unknown error"}`)
     } finally {
-      setSubmitting(false)
+      setSubmitType(null)
     }
   }
+
   async function handleDeleteAnnouncement(ann: any) {
     const creatorProfile = profiles?.find(p => p.id === ann.user_id || p.username.toLowerCase() === ann.username?.toLowerCase());
     const isAdminAnnouncement = checkIsSuperAdmin(creatorProfile?.email) || ann.is_admin || ann.username === "admin";
@@ -493,22 +496,25 @@ async function handleSendAnnouncement(e: React.FormEvent, audienceType: "all" | 
               </div>
 
               <div className="flex flex-col gap-2 mt-2">
+                {/* 1. Send to All Users బటన్ (White Color) */}
                 <button
                   type="button"
-                  disabled={submitting}
+                  disabled={submitType !== null}
                   onClick={(e) => handleSendAnnouncement(e, "all")}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-black border border-gray-300 hover:bg-gray-50 disabled:opacity-50 shadow-sm"
                 >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {submitType === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   Send to All Users (Alerts)
                 </button>
+
+                {/* 2. Send Only to Faculty and Admin బటన్ (Gold / Yellow Color) */}
                 <button
                   type="button"
-                  disabled={submitting}
+                  disabled={submitType !== null}
                   onClick={(e) => handleSendAnnouncement(e, "faculty_admin")}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-xs font-bold text-foreground hover:bg-secondary/80 disabled:opacity-50 border border-border"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-xs font-bold text-black hover:bg-amber-600 disabled:opacity-50 border border-amber-600 shadow-sm"
                 >
-                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
+                  {submitType === "faculty_admin" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
                   Send Only to Faculty and Admin (Broadcast)
                 </button>
               </div>
