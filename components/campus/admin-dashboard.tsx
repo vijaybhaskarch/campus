@@ -160,7 +160,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         image_url: imageUrl,
         link_url: linkUrl.trim() || null,
         link_text: linkUrl.trim() ? (linkText.trim() || "View") : "View",
-        // targetAudience ని బట్టి అలర్ట్స్ లేదా బ్రాడ్కాస్ట్ లో మాత్రమే కనిపించేలా హ్యాండిల్ చేయబడుతుంది
         target_audience: targetAudience,
       })
 
@@ -212,7 +211,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     return true;
   });
 
-  // కేవలం ఫ్యాకల్టీ & అడ్మిన్ బ్రాడ్‌కాస్ట్ మాత్రమే బ్రాడ్‌కాస్ట్ ట్యాబ్‌లో కనిపించాలి
   const broadcastAnnouncements = (announcements ?? []).filter((ann) => {
     return ann.target_audience === "faculty_admin" || ann.title?.includes("Broadcast");
   });
