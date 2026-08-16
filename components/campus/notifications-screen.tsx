@@ -4,10 +4,16 @@ import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { Heart, CheckCircle2, Bell, Clock, Megaphone, Trash2 } from "lucide-react"
 import { formatPrice, type Item } from "@/lib/campus-data"
-import { fetchAnnouncements } from "@/lib/api"
+import { getSupabase } from "@/lib/supabase/client"
 
 export function NotificationsScreen({ items, currentUserId }: { items: Item[]; currentUserId: string }) {
-  const { data: announcements } = useSWR("admin-announcements", fetchAnnouncements)
+  const { data: announcements, mutate: reloadAnnouncements } = useSWR("admin-announcements", async () => {
+    const supabase = getSupabase()
+    const { data, error } = await supabase.from("announcements").select("*").order("created_at", { ascending: false })
+    if (error) throw error
+    return data
+  })
+
   const [hiddenIds, setHiddenIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -31,9 +37,7 @@ export function NotificationsScreen({ items, currentUserId }: { items: Item[]; c
     }
   }
 
-  // Someone requested one of MY listings -> alert me.
   const incomingRequests = items.filter((i) => i.owner_id === currentUserId && i.status === "pending")
-  // Listings I requested -> track their status.
   const myRequests = items.filter((i) => i.requested_by === currentUserId && i.status !== "available")
 
   const standardNotifications = [
@@ -56,7 +60,10 @@ export function NotificationsScreen({ items, currentUserId }: { items: Item[]; c
     })),
   ]
 
-  const visibleAnnouncements = announcements ?? []
+  // కేవలం 'all' ఆడియెన్స్ ఉన్నవి మరియు యూజర్ దాచుకోనివి మాత్రమే అలర్ట్స్‌లో కనిపిస్తాయి
+  const visibleAnnouncements = (announcements ?? []).filter(
+    (ann: any) => ann.target_audience !== "faculty_admin" && !hiddenIds.includes(ann.id)
+  )
 
   const hasAnyNotifications = visibleAnnouncements.length > 0 || standardNotifications.length > 0
 
@@ -77,8 +84,7 @@ export function NotificationsScreen({ items, currentUserId }: { items: Item[]; c
         </div>
       ) : (
         <div className="flex flex-col gap-2.5 px-5 pb-32 pt-2">
-          {/* Admin Broadcast Announcements */}
-          {visibleAnnouncements.map((ann) => (
+          {visibleAnnouncements.map((ann: any) => (
             <div key={ann.id} className="flex gap-3 rounded-2xl border border-primary/40 bg-card p-3.5 shadow-sm relative">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Megaphone className="h-5 w-5" />
@@ -86,17 +92,18 @@ export function NotificationsScreen({ items, currentUserId }: { items: Item[]; c
               <div className="min-w-0 flex-1 pr-6">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-bold text-foreground">{ann.title}</p>
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">Admin</span>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">Announcement</span>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
                 
-                {/* Admin Announcement Image Display */}
                 {ann.image_url && (
-                  <img
-                    src={ann.image_url}
-                    alt="Announcement attachment"
-                    className="mt-2.5 h-36 w-full rounded-xl object-cover"
-                  />
+                  <div className="mt-2.5 w-full overflow-hidden rounded-xl bg-muted/20 flex justify-center">
+                    <img
+                      src={ann.image_url}
+                      alt="Announcement attachment"
+                      className="w-full h-auto object-contain rounded-lg max-h-[400px]"
+                    />
+                  </div>
                 )}
 
                 {ann.link_url && (
@@ -109,6 +116,10 @@ export function NotificationsScreen({ items, currentUserId }: { items: Item[]; c
                     {ann.link_text || "View Deal"} →
                   </a>
                 )}
+
+                <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>By: @{ann.username || "Admin"}</span>
+                </div>
               </div>
               <button
                 type="button"
@@ -121,7 +132,6 @@ export function NotificationsScreen({ items, currentUserId }: { items: Item[]; c
             </div>
           ))}
 
-          {/* Standard Activity Notifications */}
           {standardNotifications.map((n) => {
             const Icon = n.icon
             return (
