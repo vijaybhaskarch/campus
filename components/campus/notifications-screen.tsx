@@ -6,8 +6,18 @@ import { Heart, CheckCircle2, Bell, Clock, Megaphone, Trash2 } from "lucide-reac
 import { formatPrice, type Item } from "@/lib/campus-data"
 import { getSupabase } from "@/lib/supabase/client"
 
-export function NotificationsScreen({ items, currentUserId }: { items: Item[]; currentUserId: string }) {
-  const { data: announcements, mutate: reloadAnnouncements } = useSWR("admin-announcements", async () => {
+export function NotificationsScreen({ 
+  items, 
+  currentUserId, 
+  userRole, 
+  userEmail 
+}: { 
+  items: Item[]; 
+  currentUserId: string; 
+  userRole?: string; 
+  userEmail?: string 
+}) {
+  const { data: announcements } = useSWR("admin-announcements", async () => {
     const supabase = getSupabase()
     const { data, error } = await supabase.from("announcements").select("*").order("created_at", { ascending: false })
     if (error) throw error
@@ -60,10 +70,17 @@ export function NotificationsScreen({ items, currentUserId }: { items: Item[]; c
     })),
   ]
 
-  // కేవలం 'all' ఆడియెన్స్ ఉన్నవి మరియు యూజర్ దాచుకోనివి మాత్రమే అలర్ట్స్‌లో కనిపిస్తాయి
-  const visibleAnnouncements = (announcements ?? []).filter(
-    (ann: any) => ann.target_audience !== "faculty_admin" && !hiddenIds.includes(ann.id)
-  )
+  const isSuperAdmin = userEmail?.toLowerCase().trim() === "vijaybhaskar.ch9045@gmail.com"
+  const isUserFacultyOrAdmin = isSuperAdmin || userRole === "faculty" || userRole === "admin" || userRole === "super_admin"
+
+  // అనౌన్స్‌మెంట్‌లు మరియు బ్రాడ్‌కాస్ట్ ఫిల్టరింగ్
+  const visibleAnnouncements = (announcements ?? []).filter((ann: any) => {
+    if (hiddenIds.includes(ann.id)) return false;
+    if (ann.target_audience === "faculty_admin") {
+      return isUserFacultyOrAdmin;
+    }
+    return true;
+  })
 
   const hasAnyNotifications = visibleAnnouncements.length > 0 || standardNotifications.length > 0
 
@@ -84,53 +101,58 @@ export function NotificationsScreen({ items, currentUserId }: { items: Item[]; c
         </div>
       ) : (
         <div className="flex flex-col gap-2.5 px-5 pb-32 pt-2">
-          {visibleAnnouncements.map((ann: any) => (
-            <div key={ann.id} className="flex gap-3 rounded-2xl border border-primary/40 bg-card p-3.5 shadow-sm relative">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Megaphone className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1 pr-6">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold text-foreground">{ann.title}</p>
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">Announcement</span>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
-                
-                {ann.image_url && (
-                  <div className="mt-2.5 w-full overflow-hidden rounded-xl bg-muted/20 flex justify-center">
-                    <img
-                      src={ann.image_url}
-                      alt="Announcement attachment"
-                      className="w-full h-auto object-contain rounded-lg max-h-[400px]"
-                    />
+          {visibleAnnouncements.map((ann: any) => {
+            const isBroadcast = ann.target_audience === "faculty_admin";
+            return (
+              <div key={ann.id} className="flex gap-3 rounded-2xl border border-primary/40 bg-card p-3.5 shadow-sm relative">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Megaphone className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1 pr-6">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-bold text-foreground">{ann.title}</p>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">
+                      {isBroadcast ? "Broadcast" : "Announcement"}
+                    </span>
                   </div>
-                )}
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
+                  
+                  {ann.image_url && (
+                    <div className="mt-2.5 w-full overflow-hidden rounded-xl bg-muted/20 flex justify-center">
+                      <img
+                        src={ann.image_url}
+                        alt="Announcement attachment"
+                        className="w-full h-auto object-contain rounded-lg max-h-[400px]"
+                      />
+                    </div>
+                  )}
 
-                {ann.link_url && (
-                  <a
-                    href={ann.link_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2.5 inline-flex items-center rounded-xl bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm"
-                  >
-                    {ann.link_text || "View Deal"} →
-                  </a>
-                )}
+                  {ann.link_url && (
+                    <a
+                      href={ann.link_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2.5 inline-flex items-center rounded-xl bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm"
+                    >
+                      {ann.link_text || "View Deal"} →
+                    </a>
+                  )}
 
-                <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>By: @{ann.username || "Admin"}</span>
+                  <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>By: @{ann.username || "Admin"}</span>
+                  </div>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => handleDismissAnnouncement(ann.id)}
+                  aria-label="Delete notification"
+                  className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => handleDismissAnnouncement(ann.id)}
-                aria-label="Delete notification"
-                className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </div>
-          ))}
+            )
+          })}
 
           {standardNotifications.map((n) => {
             const Icon = n.icon
