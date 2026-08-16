@@ -41,7 +41,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
   const { data: profiles, mutate: reloadProfiles, isLoading: profilesLoading } = useSWR("admin-profiles", fetchAllProfiles)
   const { data: reviews, isLoading: reviewsLoading } = useSWR("admin-reviews", fetchReviews)
-  const { data: announcements, mutate: reloadAnnouncements, isLoading: announcementsLoading } = useSWR("admin-announcements", fetchAnnouncements)
+  const { data: announcements, mutate: reloadAnnouncements, isLoading: announcementsLoading } = useSWR("admin-announcements", async () => {
+  const supabase = getSupabase()
+  const { data, error } = await supabase.from("announcements").select("*").order("created_at", { ascending: false })
+  if (error) throw error
+  return data
+}, { refreshInterval: 1000 })
 
   function checkIsSuperAdmin(pEmail?: string | null) {
     if (!pEmail) return false;
