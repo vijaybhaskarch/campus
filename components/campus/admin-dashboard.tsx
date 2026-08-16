@@ -125,15 +125,15 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   }
 
-  async function handleSendAnnouncement(e: React.FormEvent, audienceType: "all" | "faculty_admin") {
+async function handleSendAnnouncement(e: React.FormEvent, audienceType: "all" | "faculty_admin") {
     e.preventDefault()
     if (!message.trim()) return
     setSubmitting(true)
     try {
+      const supabase = getSupabase()
       let imageUrl: string | null = null
 
       if (imageFile) {
-        const supabase = getSupabase()
         const fileExt = imageFile.name.split(".").pop()
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
         const filePath = `announcements/${fileName}`
@@ -155,23 +155,27 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       const senderRole = isAdmin ? "Admin" : "Faculty"
       const finalTitle = title.trim() || (audienceType === "faculty_admin" ? "Broadcast Message" : "Platform Announcement")
 
-      // 1. ప్రధాన అనౌన్స్‌మెంట్ లేదా బ్రాడ్‌కాస్ట్ క్రియేట్ చేయడం
-      await createAnnouncement({
+      // 1. డైరెక్ట్‌గా Supabase టేబుల్‌లో ఇన్సర్ట్ చేయడం (Failed ఎర్రర్ రాకుండా ఉంటుంది)
+      const { error: insertError } = await supabase.from("announcements").insert({
         title: finalTitle,
         message: message.trim(),
         image_url: imageUrl,
         link_url: linkUrl.trim() || null,
         link_text: linkUrl.trim() ? (linkText.trim() || "View") : "View",
         target_audience: audienceType,
-      } as any)
+        user_id: user?.id,
+        username: senderName,
+      })
+
+      if (insertError) throw insertError
 
       // 2. ఒకవేళ బ్రాడ్‌కాస్ట్ అయితే, అడ్మిన్/ఫ్యాకల్టీ అలర్ట్స్‌లో కేవలం ఇన్ఫో మెసేజ్ వచ్చేలా చేయడం
       if (audienceType === "faculty_admin") {
-        const supabase = getSupabase()
         await supabase.from("announcements").insert({
           title: "New Broadcast Notification",
           message: `You have a message in broadcast sent by @${senderName} (${senderRole})`,
           target_audience: "all", 
+          user_id: user?.id,
           username: senderName,
         })
       }
@@ -183,14 +187,13 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       setLinkText("View")
       void reloadAnnouncements()
       alert(audienceType === "faculty_admin" ? "Broadcast sent successfully!" : "Announcement sent successfully to all users!")
-    } catch (err) {
-      console.error(err)
-      alert("Failed to send notification.")
+    } catch (err: any) {
+      console.error("Detailed error:", err)
+      alert(`Failed to send notification: ${err?.message || "Unknown error"}`)
     } finally {
       setSubmitting(false)
     }
   }
-
   async function handleDeleteAnnouncement(ann: any) {
     const creatorProfile = profiles?.find(p => p.id === ann.user_id || p.username.toLowerCase() === ann.username?.toLowerCase());
     const isAdminAnnouncement = checkIsSuperAdmin(creatorProfile?.email) || ann.is_admin || ann.username === "admin";
