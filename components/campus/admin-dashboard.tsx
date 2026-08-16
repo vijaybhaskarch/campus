@@ -151,7 +151,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         imageUrl = publicUrlData.publicUrl
       }
 
-      const finalTitle = targetAudience === "faculty_admin" 
+      const isFacultyAdminOnly = targetAudience === "faculty_admin";
+      const finalTitle = isFacultyAdminOnly 
         ? `[Faculty & Admin] ${title.trim() || "Broadcast"}`
         : (title.trim() || "Platform Announcement");
 
@@ -161,6 +162,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         image_url: imageUrl,
         link_url: linkUrl.trim() || null,
         link_text: linkUrl.trim() ? (linkText.trim() || "View") : "View",
+        // ఒకవేళ మీ డేటాబేస్ లో target ఫీల్డ్ ఉంటే లేదా టైటిల్ ద్వారా ఫిల్టర్ అవుతుంటే ఇది పనిచేస్తుంది
+        // Send to All Users అయితే అలర్ట్స్ లో మాత్రమే కనిపించేలా టైటిల్ లేదా ఫ్లాగ్ సెట్ చేయబడుతుంది
       })
 
       setTitle("")
@@ -170,7 +173,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       setLinkText("View")
       setTargetAudience("all")
       void reloadAnnouncements()
-      alert(targetAudience === "faculty_admin" ? "Broadcast sent successfully to Admin & Faculty!" : "Announcement sent successfully to all users!")
+      
+      if (isFacultyAdminOnly) {
+        alert("Broadcast sent successfully to Admin & Faculty dashboard!")
+      } else {
+        alert("Announcement sent successfully to all users' alerts!")
+      }
     } catch (err) {
       console.error(err)
       alert("Failed to send announcement.")
@@ -204,6 +212,12 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       return r.category === "Complaint to Faculty";
     }
     return true;
+  });
+
+  // Send to All Users అయితే కేవలం అలర్ట్స్ లో మాత్రమే చూపించాలి (బ్రాడ్కాస్ట్ ట్యాబ్ లో చూపించకూడదు)
+  const broadcastAnnouncements = (announcements ?? []).filter((ann) => {
+    const isFacultyAdminBroadcast = ann.title?.startsWith("[Faculty & Admin]") || ann.title?.includes("Broadcast");
+    return isFacultyAdminBroadcast;
   });
 
   const tabs: { id: AdminTab; label: string; icon: typeof Users }[] = [
@@ -463,7 +477,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                         onChange={() => setTargetAudience("all")}
                         className="text-primary focus:ring-primary"
                       />
-                      Send to All Users
+                      Send to All Users (Alerts Only)
                     </label>
                     <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
                       <input
@@ -530,11 +544,11 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1 mb-1">Previous Broadcasts</h3>
             {announcementsLoading ? (
               <Spinner />
-            ) : (announcements ?? []).length === 0 ? (
+            ) : broadcastAnnouncements.length === 0 ? (
               <Empty label="No broadcasts sent yet." />
             ) : (
               <div className="flex flex-col gap-2.5">
-                {(announcements ?? []).map((ann) => {
+                {broadcastAnnouncements.map((ann) => {
                   const creatorProfile = profiles?.find(p => p.id === ann.user_id || p.username.toLowerCase() === ann.username?.toLowerCase());
                   const isAdminAnnouncement = checkIsSuperAdmin(creatorProfile?.email) || ann.is_admin || ann.username === "admin";
                   const hideDeleteAnn = !isAdmin && isAdminAnnouncement;
@@ -550,7 +564,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
                             <div className="mt-2.5 w-full overflow-hidden rounded-xl bg-muted/20 flex justify-center">
                               <img
                                 src={ann.image_url}
-                                alt="Announcement attachment"
+                                alt="Broadcast attachment"
                                 className="w-auto max-h-[350px] object-contain rounded-lg"
                               />
                             </div>
