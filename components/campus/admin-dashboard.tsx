@@ -124,7 +124,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       localStorage.setItem(`hidden_reviews_${user.id}`, JSON.stringify(updated))
     }
   }
-
 async function handleSendAnnouncement(e: React.FormEvent, audienceType: "all" | "faculty_admin") {
     e.preventDefault()
     if (!message.trim()) return
@@ -152,10 +151,9 @@ async function handleSendAnnouncement(e: React.FormEvent, audienceType: "all" | 
       }
 
       const senderName = profile?.username || user?.email?.split("@")[0] || "Admin"
-      const senderRole = isAdmin ? "Admin" : "Faculty"
       const finalTitle = title.trim() || (audienceType === "faculty_admin" ? "Broadcast Message" : "Platform Announcement")
 
-      // 1. డైరెక్ట్‌గా Supabase టేబుల్‌లో ఇన్సర్ట్ చేయడం (Failed ఎర్రర్ రాకుండా ఉంటుంది)
+      // కేవలం ఏ బటన్ నొక్కితే ఆ ఒక్క ఎంట్రీ మాత్రమే డేటాబేస్‌లో సేవ్ అవుతుంది
       const { error: insertError } = await supabase.from("announcements").insert({
         title: finalTitle,
         message: message.trim(),
@@ -168,17 +166,6 @@ async function handleSendAnnouncement(e: React.FormEvent, audienceType: "all" | 
       })
 
       if (insertError) throw insertError
-
-      // 2. ఒకవేళ బ్రాడ్‌కాస్ట్ అయితే, అడ్మిన్/ఫ్యాకల్టీ అలర్ట్స్‌లో కేవలం ఇన్ఫో మెసేజ్ వచ్చేలా చేయడం
-      if (audienceType === "faculty_admin") {
-        await supabase.from("announcements").insert({
-          title: "New Broadcast Notification",
-          message: `You have a message in broadcast sent by @${senderName} (${senderRole})`,
-          target_audience: "all", 
-          user_id: user?.id,
-          username: senderName,
-        })
-      }
 
       setTitle("")
       setMessage("")
