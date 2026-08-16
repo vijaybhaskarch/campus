@@ -24,6 +24,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
   const [submitType, setSubmitType] = useState<"all" | "faculty_admin" | null>(null)
   const [hiddenReviewIds, setHiddenReviewIds] = useState<string[]>([])
   const [deleteModalAnn, setDeleteModalAnn] = useState<any | null>(null)
+  const [hiddenAnnIds, setHiddenAnnIds] = useState<string[]>([])
 
   useEffect(() => {
     if (user?.id) {
@@ -34,6 +35,10 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         } catch (e) {
           console.error(e)
         }
+      }
+      const savedAnn = localStorage.getItem(`hidden_announcements_${user.id}`)
+      if (savedAnn) {
+        try { setHiddenAnnIds(JSON.parse(savedAnn)) } catch(e) {}
       }
     }
   }, [user?.id])
@@ -214,13 +219,14 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       if (!hiddenArr.includes(ann.id)) {
         hiddenArr.push(ann.id);
         localStorage.setItem(hiddenKey, JSON.stringify(hiddenArr));
+        setHiddenAnnIds([...hiddenArr]);
       }
       void reloadAnnouncements();
     }
   }
 
   function handleTrashClick(ann: any) {
-    const isCreator = ann.user_id === user?.id || ann.username === profile?.username || checkIsSuperAdmin(user?.email);
+    const isCreator = ann.user_id === user?.id || ann.username === profile?.username || checkIsSuperAdmin(user?.email) || isAdmin;
     
     if (isCreator) {
       setDeleteModalAnn(ann);
@@ -228,17 +234,6 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       handleDeleteChoice('me', ann);
     }
   }
-
-  const [hiddenAnnIds, setHiddenAnnIds] = useState<string[]>([])
-
-  useEffect(() => {
-    if (user?.id) {
-      const savedAnn = localStorage.getItem(`hidden_announcements_${user.id}`)
-      if (savedAnn) {
-        try { setHiddenAnnIds(JSON.parse(savedAnn)) } catch(e) {}
-      }
-    }
-  }, [user?.id])
 
   const displayedReviews = (reviews ?? []).filter((r) => {
     if (hiddenReviewIds.includes(r.id)) return false;
@@ -703,6 +698,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button 
+                type="button"
                 onClick={() => handleDeleteChoice('everyone', deleteModalAnn)}
                 style={{ padding: '12px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
               >
@@ -710,13 +706,15 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
               </button>
               
               <button 
+                type="button"
                 onClick={() => handleDeleteChoice('me', deleteModalAnn)}
                 style={{ padding: '12px', background: '#374151', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
               >
-                Delete from Me
+                Delete from Me`
               </button>
               
               <button 
+                type="button"
                 onClick={() => handleDeleteChoice('cancel', deleteModalAnn)}
                 style={{ padding: '12px', background: 'transparent', color: '#9ca3af', border: '1px solid #4b5563', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
               >
