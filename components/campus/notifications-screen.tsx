@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { Heart, CheckCircle2, Bell, Clock, Megaphone, Trash2 } from "lucide-react"
 import { formatPrice, type Item } from "@/lib/campus-data"
-import { fetchAnnouncements } from "@/lib/api"
+import { getSupabase } from "@/lib/supabase/client"
 
 export function NotificationsScreen({ 
   items, 
@@ -19,7 +19,14 @@ export function NotificationsScreen({
   isAdmin?: boolean
   userRole?: string 
 }) {
-  const { data: announcements } = useSWR("admin-announcements", fetchAnnouncements)
+  // ఇక్కడ fetchAnnouncements బదులుగా డైరెక్ట్ Supabase క్వెరీ వాడుతున్నాం, దీనివల్ల బ్రాడ్‌కాస్ట్ మెసేజ్‌లు వెంటనే వస్తాయి
+  const { data: announcements } = useSWR("admin-announcements", async () => {
+    const supabase = getSupabase()
+    const { data, error } = await supabase.from("announcements").select("*").order("created_at", { ascending: false })
+    if (error) throw error
+    return data
+  }, { refreshInterval: 1000 })
+
   const [hiddenIds, setHiddenIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -68,12 +75,16 @@ export function NotificationsScreen({
     })),
   ]
 
-  // Broadcast announcements are ONLY shown if the user is Admin or Faculty
+  // Broadcast announcements & normal announcements filtering
   const canSeeBroadcasts = isAdmin || isFaculty
 
-  const visibleAnnouncements = canSeeBroadcasts 
-    ? (announcements ?? []).filter((ann) => !hiddenIds.includes(ann.id))
-    : []
+  const visibleAnnouncements = (announcements ?? []).filter((ann) => {
+    if (hiddenIds.includes(ann.id)) return false;
+    if (ann.target_audience === "faculty_admin") {
+      return canSeeBroadcasts;
+    }
+    return true;
+  })
 
   const hasAnyNotifications = visibleAnnouncements.length > 0 || standardNotifications.length > 0
 
@@ -94,10 +105,11 @@ export function NotificationsScreen({
         </div>
       ) : (
         <div className="flex flex-col gap-2.5 px-5 pb-32 pt-2">
-          {/* Broadcast Announcements for Faculty and Admin */}
+          {/* Broadcast Announcements & Normal Announcements */}
           {visibleAnnouncements.map((ann) => {
-            const senderRole = ann.sender_role || "admin"
-            const senderName = ann.sender_username || "Admin"
+            const senderRole = ann.sender_role || (ann.username === "admin" ? "admin" : "faculty")
+            const senderName = ann.username || "Admin"
+            const isBroadcast = ann.target_audience === "faculty_admin"
 
             return (
               <div key={ann.id} className="flex gap-3 rounded-2xl border border-primary/40 bg-card p-3.5 shadow-sm relative">
@@ -107,15 +119,15 @@ export function NotificationsScreen({
                 <div className="min-w-0 flex-1 pr-6">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold text-foreground">{ann.title}</p>
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">Broadcast</span>
+                    {isBroadcast && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">Broadcast</span>
+                    )}
                   </div>
                   
-                  {/* English message showing sender username and role */}
                   <p className="mt-1 text-xs font-medium text-foreground">
                     You have a message on Broadcast by @{senderName}
                   </p>
                   
-                  {/* Role Badge: White for Faculty, Gold for Admin */}
                   <div className="mt-1 flex items-center gap-1.5">
                     {senderRole.toLowerCase() === "faculty" ? (
                       <span className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-bold text-black shadow-sm">
@@ -145,7 +157,7 @@ export function NotificationsScreen({
                       rel="noopener noreferrer"
                       className="mt-2.5 inline-flex items-center rounded-xl bg-primary px-3.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm"
                     >
-                      {ann.link_text || "View Deal"} →
+                      {ann.link_text || "View"} →
                     </a>
                   )}
                 </div>
