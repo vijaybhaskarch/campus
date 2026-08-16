@@ -1,7 +1,6 @@
 "use client"
 
-import { useMemo, useState, useEffect } from "react"
-import useSWR from "swr"
+import { useMemo, useState } from "react"
 import type { Category, Item } from "@/lib/campus-data"
 import {
   createListing,
@@ -10,7 +9,6 @@ import {
   requestListing,
   resetToAvailable,
 } from "@/lib/api"
-import { fetchAnnouncements } from "@/lib/api" // <- ఇది యాడ్ చేయండి
 import { useSession } from "./session-provider"
 import { BottomNav, type Tab } from "./bottom-nav"
 import { HomeScreen } from "./home-screen"
@@ -25,24 +23,8 @@ export function CampusApp() {
   const [tab, setTab] = useState<Tab>("home")
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  // అడ్మిన్ అనౌన్స్‌మెంట్‌లను ఫెచ్ చేయడం కోసం
-  const { data: announcements } = useSWR("admin-announcements", fetchAnnouncements)
-  const [hiddenIds, setHiddenIds] = useState<string[]>([])
-
   const userId = user!.id
   const username = profile?.username ?? "student"
-
-  // లోకల్ స్టోరేజ్ నుండి డిస్మిస్ చేసిన అనౌన్స్‌మెంట్‌ల ఐడీలను తెచ్చుకోవడం
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(`hidden_announcements_${userId}`)
-      if (stored) {
-        setHiddenIds(JSON.parse(stored))
-      }
-    } catch (e) {
-      console.error(e)
-    }
-  }, [userId])
 
   // Always derive the selected item from the live list so its status stays fresh.
   const selected = useMemo(
@@ -50,18 +32,10 @@ export function CampusApp() {
     [selectedId, listings],
   )
 
-  // విజిబుల్ అయిన (డిస్మిസ് కాని) అడ్మిన్ అనౌన్స్‌మెంట్‌ల కౌంట్
-  const visibleAnnouncementsCount = (announcements ?? []).filter(
-    (ann) => !hiddenIds.includes(ann.id)
-  ).length
-
-  // ఇన్‌కమింగ్ రిక్వెస్ట్స్ కౌంట్
-  const incomingRequestsCount = listings.filter(
+  // Notifications: an owner is alerted when someone requests their item.
+  const notificationCount = listings.filter(
     (i) => i.owner_id === userId && i.status === "pending",
   ).length
-
-  // రెండూ కలిపి టోటల్ నోటిఫికేషన్ కౌంట్
-  const notificationCount = visibleAnnouncementsCount + incomingRequestsCount
 
   function openItem(item: Item) {
     setSelectedId(item.id)
