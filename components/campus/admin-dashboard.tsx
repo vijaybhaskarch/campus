@@ -125,15 +125,15 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   }
 
- async function handleSendAnnouncement(e: React.FormEvent) {
+  async function handleSendAnnouncement(e: React.FormEvent, audienceType: "all" | "faculty_admin") {
     e.preventDefault()
     if (!message.trim()) return
     setSubmitting(true)
     try {
-      const supabase = getSupabase()
       let imageUrl: string | null = null
 
       if (imageFile) {
+        const supabase = getSupabase()
         const fileExt = imageFile.name.split(".").pop()
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
         const filePath = `announcements/${fileName}`
@@ -153,29 +153,25 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
       const senderName = profile?.username || user?.email?.split("@")[0] || "Admin"
       const senderRole = isAdmin ? "Admin" : "Faculty"
-      const finalTitle = title.trim() || (targetAudience === "faculty_admin" ? "Broadcast Message" : "Platform Announcement")
+      const finalTitle = title.trim() || (audienceType === "faculty_admin" ? "Broadcast Message" : "Platform Announcement")
 
-      // 1. ప్రధాన అనౌన్స్‌మెంట్ / బ్రాడ్‌కాస్ట్ ని సేవ్ చేయడం
-      const { error: insertError } = await supabase.from("announcements").insert({
+      // 1. ప్రధాన అనౌన్స్‌మెంట్ లేదా బ్రాడ్‌కాస్ట్ క్రియేట్ చేయడం
+      await createAnnouncement({
         title: finalTitle,
         message: message.trim(),
         image_url: imageUrl,
         link_url: linkUrl.trim() || null,
         link_text: linkUrl.trim() ? (linkText.trim() || "View") : "View",
-        target_audience: targetAudience,
-        user_id: user?.id,
-        username: senderName,
-      })
+        target_audience: audienceType,
+      } as any)
 
-      if (insertError) throw insertError
-
-      // 2. ఒకవేళ ఇది బ్రాడ్‌కాస్ట్ అయితే, అలర్ట్స్ లోకి మెసేజ్ వెళ్లకుండా కేవలం ఇన్ఫర్మేషన్ నోటిఫికేషన్ వెళ్లేలా చేయడం
-      if (targetAudience === "faculty_admin") {
+      // 2. ఒకవేళ బ్రాడ్‌కాస్ట్ అయితే, అడ్మిన్/ఫ్యాకల్టీ అలర్ట్స్‌లో కేవలం ఇన్ఫో మెసేజ్ వచ్చేలా చేయడం
+      if (audienceType === "faculty_admin") {
+        const supabase = getSupabase()
         await supabase.from("announcements").insert({
           title: "New Broadcast Notification",
           message: `You have a message in broadcast sent by @${senderName} (${senderRole})`,
-          target_audience: "alert_info", // ఇది కేవలం అలర్ట్స్ కోసం లేదా ఇన్ఫో నోటిఫికేషన్ లాగా పనిచేస్తుంది
-          user_id: user?.id,
+          target_audience: "all", 
           username: senderName,
         })
       }
@@ -185,35 +181,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       setImageFile(null)
       setLinkUrl("")
       setLinkText("View")
-      setTargetAudience("all")
       void reloadAnnouncements()
-      
-      alert(targetAudience === "faculty_admin" ? "Broadcast sent successfully to Faculty & Admin!" : "Announcement sent successfully to all users!")
-    } catch (err: any) {
-      console.error("Error details:", err)
-      alert(`Failed to send notification: ${err.message || "Unknown error"}`)
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-      await createAnnouncement({
-        title: title.trim() || (targetAudience === "faculty_admin" ? "Broadcast Message" : "Platform Announcement"),
-        message: message.trim(),
-        image_url: imageUrl,
-        link_url: linkUrl.trim() || null,
-        link_text: linkUrl.trim() ? (linkText.trim() || "View") : "View",
-        target_audience: targetAudience,
-      } as any)
-
-      setTitle("")
-      setMessage("")
-      setImageFile(null)
-      setLinkUrl("")
-      setLinkText("View")
-      setTargetAudience("all")
-      void reloadAnnouncements()
-      alert(targetAudience === "faculty_admin" ? "Broadcast sent successfully!" : "Announcement sent successfully to all users!")
+      alert(audienceType === "faculty_admin" ? "Broadcast sent successfully!" : "Announcement sent successfully to all users!")
     } catch (err) {
       console.error(err)
       alert("Failed to send notification.")
@@ -472,7 +441,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
         {tab === "announcements" && (
           <div className="flex flex-col gap-4">
-            <form onSubmit={handleSendAnnouncement} className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
+            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
               <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <Megaphone className="h-4 w-4 text-primary" />
                 Create Announcement
@@ -535,25 +504,25 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
               <div className="flex flex-col gap-2 mt-2">
                 <button
-                  type="submit"
+                  type="button"
                   disabled={submitting}
-                  onClick={() => setTargetAudience("all")}
+                  onClick={(e) => handleSendAnnouncement(e, "all")}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground disabled:opacity-50"
                 >
-                  {submitting && targetAudience === "all" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   Send to All Users (Alerts)
                 </button>
                 <button
-                  type="submit"
+                  type="button"
                   disabled={submitting}
-                  onClick={() => setTargetAudience("faculty_admin")}
+                  onClick={(e) => handleSendAnnouncement(e, "faculty_admin")}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-secondary px-4 py-2.5 text-xs font-bold text-foreground hover:bg-secondary/80 disabled:opacity-50 border border-border"
                 >
-                  {submitting && targetAudience === "faculty_admin" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
+                  {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
                   Send Only to Faculty and Admin (Broadcast)
                 </button>
               </div>
-            </form>
+            </div>
 
             <div className="mt-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1 mb-2">Previous Announcements</h3>
