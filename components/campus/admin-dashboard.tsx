@@ -125,15 +125,15 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     }
   }
 
-  async function handleSendAnnouncement(e: React.FormEvent) {
+ async function handleSendAnnouncement(e: React.FormEvent) {
     e.preventDefault()
     if (!message.trim()) return
     setSubmitting(true)
     try {
+      const supabase = getSupabase()
       let imageUrl: string | null = null
 
       if (imageFile) {
-        const supabase = getSupabase()
         const fileExt = imageFile.name.split(".").pop()
         const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`
         const filePath = `announcements/${fileName}`
@@ -150,6 +150,52 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
 
         imageUrl = publicUrlData.publicUrl
       }
+
+      const senderName = profile?.username || user?.email?.split("@")[0] || "Admin"
+      const senderRole = isAdmin ? "Admin" : "Faculty"
+      const finalTitle = title.trim() || (targetAudience === "faculty_admin" ? "Broadcast Message" : "Platform Announcement")
+
+      // 1. ప్రధాన అనౌన్స్‌మెంట్ / బ్రాడ్‌కాస్ట్ ని సేవ్ చేయడం
+      const { error: insertError } = await supabase.from("announcements").insert({
+        title: finalTitle,
+        message: message.trim(),
+        image_url: imageUrl,
+        link_url: linkUrl.trim() || null,
+        link_text: linkUrl.trim() ? (linkText.trim() || "View") : "View",
+        target_audience: targetAudience,
+        user_id: user?.id,
+        username: senderName,
+      })
+
+      if (insertError) throw insertError
+
+      // 2. ఒకవేళ ఇది బ్రాడ్‌కాస్ట్ అయితే, అలర్ట్స్ లోకి మెసేజ్ వెళ్లకుండా కేవలం ఇన్ఫర్మేషన్ నోటిఫికేషన్ వెళ్లేలా చేయడం
+      if (targetAudience === "faculty_admin") {
+        await supabase.from("announcements").insert({
+          title: "New Broadcast Notification",
+          message: `You have a message in broadcast sent by @${senderName} (${senderRole})`,
+          target_audience: "alert_info", // ఇది కేవలం అలర్ట్స్ కోసం లేదా ఇన్ఫో నోటిఫికేషన్ లాగా పనిచేస్తుంది
+          user_id: user?.id,
+          username: senderName,
+        })
+      }
+
+      setTitle("")
+      setMessage("")
+      setImageFile(null)
+      setLinkUrl("")
+      setLinkText("View")
+      setTargetAudience("all")
+      void reloadAnnouncements()
+      
+      alert(targetAudience === "faculty_admin" ? "Broadcast sent successfully to Faculty & Admin!" : "Announcement sent successfully to all users!")
+    } catch (err: any) {
+      console.error("Error details:", err)
+      alert(`Failed to send notification: ${err.message || "Unknown error"}`)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
       await createAnnouncement({
         title: title.trim() || (targetAudience === "faculty_admin" ? "Broadcast Message" : "Platform Announcement"),
