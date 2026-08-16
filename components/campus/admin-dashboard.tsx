@@ -152,7 +152,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       }
 
       const isFacultyAdminOnly = targetAudience === "faculty_admin";
-      const finalTitle = title.trim() || (isFacultyAdminOnly ? "Broadcast" : "Platform Announcement");
+      const finalTitle = isFacultyAdminOnly 
+        ? `[Faculty & Admin] ${title.trim() || "Broadcast"}`
+        : (title.trim() || "Platform Announcement");
 
       await createAnnouncement({
         title: finalTitle,
@@ -160,7 +162,8 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
         image_url: imageUrl,
         link_url: linkUrl.trim() || null,
         link_text: linkUrl.trim() ? (linkText.trim() || "View") : "View",
-        target_audience: targetAudience,
+        // ఒకవేళ మీ డేటాబేస్ లో target ఫీల్డ్ ఉంటే లేదా టైటిల్ ద్వారా ఫిల్టర్ అవుతుంటే ఇది పనిచేస్తుంది
+        // Send to All Users అయితే అలర్ట్స్ లో మాత్రమే కనిపించేలా టైటిల్ లేదా ఫ్లాగ్ సెట్ చేయబడుతుంది
       })
 
       setTitle("")
@@ -172,7 +175,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       void reloadAnnouncements()
       
       if (isFacultyAdminOnly) {
-        alert("Broadcast sent successfully to Admin & Faculty dashboard only!")
+        alert("Broadcast sent successfully to Admin & Faculty dashboard!")
       } else {
         alert("Announcement sent successfully to all users' alerts!")
       }
@@ -211,8 +214,10 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
     return true;
   });
 
+  // Send to All Users అయితే కేవలం అలర్ట్స్ లో మాత్రమే చూపించాలి (బ్రాడ్కాస్ట్ ట్యాబ్ లో చూపించకూడదు)
   const broadcastAnnouncements = (announcements ?? []).filter((ann) => {
-    return ann.target_audience === "faculty_admin" || ann.title?.includes("Broadcast");
+    const isFacultyAdminBroadcast = ann.title?.startsWith("[Faculty & Admin]") || ann.title?.includes("Broadcast");
+    return isFacultyAdminBroadcast;
   });
 
   const tabs: { id: AdminTab; label: string; icon: typeof Users }[] = [
