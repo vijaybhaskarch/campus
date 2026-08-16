@@ -4,26 +4,22 @@ import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { Heart, CheckCircle2, Bell, Clock, Megaphone, Trash2 } from "lucide-react"
 import { formatPrice, type Item } from "@/lib/campus-data"
-import { getSupabase } from "@/lib/supabase/client"
+import { fetchAnnouncements } from "@/lib/api"
 
 export function NotificationsScreen({ 
   items, 
   currentUserId, 
-  userRole, 
-  userEmail 
+  isFaculty, 
+  isAdmin, 
+  userRole 
 }: { 
-  items: Item[]; 
-  currentUserId: string; 
-  userRole?: string; 
-  userEmail?: string 
+  items: Item[]
+  currentUserId: string
+  isFaculty?: boolean
+  isAdmin?: boolean
+  userRole?: string 
 }) {
-  const { data: announcements } = useSWR("admin-announcements", async () => {
-    const supabase = getSupabase()
-    const { data, error } = await supabase.from("announcements").select("*").order("created_at", { ascending: false })
-    if (error) throw error
-    return data
-  })
-
+  const { data: announcements } = useSWR("admin-announcements", fetchAnnouncements)
   const [hiddenIds, setHiddenIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -47,7 +43,9 @@ export function NotificationsScreen({
     }
   }
 
+  // Someone requested one of MY listings -> alert me.[cite: 2]
   const incomingRequests = items.filter((i) => i.owner_id === currentUserId && i.status === "pending")
+  // Listings I requested -> track their status.[cite: 2]
   const myRequests = items.filter((i) => i.requested_by === currentUserId && i.status !== "available")
 
   const standardNotifications = [
@@ -70,17 +68,12 @@ export function NotificationsScreen({
     })),
   ]
 
-  const isSuperAdmin = userEmail?.toLowerCase().trim() === "vijaybhaskar.ch9045@gmail.com"
-  const isUserFacultyOrAdmin = isSuperAdmin || userRole === "faculty" || userRole === "admin" || userRole === "super_admin"
+  // Broadcast announcements are ONLY shown if the user is Admin or Faculty
+  const canSeeBroadcasts = isAdmin || isFaculty
 
-  // అనౌన్స్‌మెంట్‌లు మరియు బ్రాడ్‌కాస్ట్ ఫిల్టరింగ్
-  const visibleAnnouncements = (announcements ?? []).filter((ann: any) => {
-    if (hiddenIds.includes(ann.id)) return false;
-    if (ann.target_audience === "faculty_admin") {
-      return isUserFacultyOrAdmin;
-    }
-    return true;
-  })
+  const visibleAnnouncements = canSeeBroadcasts 
+    ? (announcements ?? []).filter((ann) => !hiddenIds.includes(ann.id))
+    : []
 
   const hasAnyNotifications = visibleAnnouncements.length > 0 || standardNotifications.length > 0
 
@@ -88,7 +81,7 @@ export function NotificationsScreen({
     <div className="flex flex-col">
       <header className="sticky top-0 z-20 bg-background/85 px-5 pb-3 pt-5 backdrop-blur-md">
         <h1 className="text-xl font-bold tracking-tight text-foreground">Notifications</h1>
-        <p className="text-xs text-muted-foreground">Requests on your items and updates on your requests.</p>
+        <p className="text-xs text-muted-foreground">Requests on your items and updates on your requests[cite: 2].</p>
       </header>
 
       {!hasAnyNotifications ? (
@@ -96,35 +89,54 @@ export function NotificationsScreen({
           <Bell className="h-10 w-10 text-muted-foreground" />
           <p className="text-sm font-medium text-foreground">No notifications yet</p>
           <p className="max-w-[240px] text-xs text-muted-foreground">
-            When someone requests your item or an owner responds to your request, it&apos;ll show up here.
+            When someone requests your item or an owner responds to your request, it&apos;ll show up here[cite: 2].
           </p>
         </div>
       ) : (
         <div className="flex flex-col gap-2.5 px-5 pb-32 pt-2">
-          {visibleAnnouncements.map((ann: any) => {
-            const isBroadcast = ann.target_audience === "faculty_admin";
+          {/* Broadcast Announcements for Faculty and Admin */}
+          {visibleAnnouncements.map((ann) => {
+            // Check role of the person who sent the announcement (defaults to admin if created from admin dashboard)
+            const senderRole = ann.sender_role || "admin"
+            const senderName = ann.sender_username || "Admin"
+
             return (
               <div key={ann.id} className="flex gap-3 rounded-2xl border border-primary/40 bg-card p-3.5 shadow-sm relative">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <Megaphone className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1 pr-6">
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
                     <p className="text-sm font-bold text-foreground">{ann.title}</p>
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">
-                      {isBroadcast ? "Broadcast" : "Announcement"}
-                    </span>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">Broadcast</span>
                   </div>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
+                  
+                  {/* English message showing sender username and role */}
+                  <p className="mt-1 text-xs font-medium text-foreground">
+                    You have a message on Broadcast by @{senderName}
+                  </p>
+                  
+                  {/* Role Badge: White for Faculty, Gold for Admin */}
+                  <div className="mt-1 flex items-center gap-1.5">
+                    {senderRole.toLowerCase() === "faculty" ? (
+                      <span className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-bold text-black shadow-sm">
+                        faculty
+                      </span>
+                    ) : (
+                      <span className="rounded-md bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-black shadow-sm">
+                        admin
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{ann.message}</p>
                   
                   {ann.image_url && (
-                    <div className="mt-2.5 w-full overflow-hidden rounded-xl bg-muted/20 flex justify-center">
-                      <img
-                        src={ann.image_url}
-                        alt="Announcement attachment"
-                        className="w-full h-auto object-contain rounded-lg max-h-[400px]"
-                      />
-                    </div>
+                    <img
+                      src={ann.image_url}
+                      alt="Announcement attachment"
+                      className="mt-2.5 h-36 w-full rounded-xl object-cover"
+                    />
                   )}
 
                   {ann.link_url && (
@@ -137,10 +149,6 @@ export function NotificationsScreen({
                       {ann.link_text || "View Deal"} →
                     </a>
                   )}
-
-                  <div className="mt-3 pt-2 border-t border-border/50 flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>By: @{ann.username || "Admin"}</span>
-                  </div>
                 </div>
                 <button
                   type="button"
@@ -154,6 +162,7 @@ export function NotificationsScreen({
             )
           })}
 
+          {/* Standard Activity Notifications[cite: 2] */}
           {standardNotifications.map((n) => {
             const Icon = n.icon
             return (
