@@ -56,7 +56,7 @@ export function NotificationsScreen({ items, currentUserId }: { items: Item[]; c
     })),
   ]
 
- const visibleAnnouncements = announcements ?? []
+ const visibleAnnouncements = (announcements ?? []).filter((ann) => !hiddenIds.includes(ann.id))
 
   const hasAnyNotifications = visibleAnnouncements.length > 0 || standardNotifications.length > 0
 
